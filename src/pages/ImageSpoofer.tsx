@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,20 +83,17 @@ const ImageSpoofer = () => {
     subParam: 'min' | 'max' | 'enabled', 
     value: number | boolean
   ) => {
-    if (typeof settings[param] === 'boolean') {
-      setSettings(prev => ({
-        ...prev,
-        [param]: value
-      }));
-    } else {
-      setSettings(prev => ({
-        ...prev,
-        [param]: {
-          ...prev[param],
-          [subParam]: value
-        }
-      }));
-    }
+    setSettings(prev => {
+      const newSettings = { ...prev };
+      if (typeof prev[param] === 'boolean') {
+        // @ts-ignore - We're handling this properly, TypeScript just can't infer it
+        newSettings[param] = value;
+      } else {
+        // @ts-ignore - We're handling this properly, TypeScript just can't infer it
+        newSettings[param] = { ...prev[param], [subParam]: value };
+      }
+      return newSettings;
+    });
   };
 
   return (

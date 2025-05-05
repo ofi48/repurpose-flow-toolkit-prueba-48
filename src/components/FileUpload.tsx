@@ -35,12 +35,20 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const validateFile = useCallback((file: File): boolean => {
     // Check file type
     const fileType = file.type;
+    const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
     const validTypes = acceptedFileTypes.split(',').map(type => type.trim());
     
-    if (!validTypes.some(type => fileType.includes(type.replace('*', '')))) {
+    // Check both MIME type and file extension
+    const isValidType = validTypes.some(type => {
+      // Remove asterisk for matching
+      const cleanType = type.replace('*', '').replace('.', '');
+      return fileType.includes(cleanType) || cleanType === fileExtension;
+    });
+    
+    if (!isValidType) {
       toast({
         title: "Invalid file type",
-        description: `Please upload ${acceptedFileTypes.replace(/\*/g, '')} files only.`,
+        description: `Please upload ${acceptedFileTypes} files only.`,
         variant: "destructive"
       });
       return false;
