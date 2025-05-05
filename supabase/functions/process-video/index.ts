@@ -77,6 +77,7 @@ async function uploadProcessedVideo(
     method: 'POST',
     headers: {
       'apikey': supabaseKey,
+      'Authorization': `Bearer ${supabaseKey}`,
     },
     body: formData
   });
@@ -184,31 +185,28 @@ serve(async (req) => {
   }
 
   try {
-    const { videoUrl, settings, numCopies } = await req.json() as VideoProcessingRequest;
-    
-    // Extract Supabase URL and key from authorization header for storage operations
-    const authorization = req.headers.get('Authorization') || '';
+    // Extract apikey from request headers
     const apikey = req.headers.get('apikey') || '';
     
-    const supabaseUrl = new URL(videoUrl).origin;
-    const supabaseKey = apikey || authorization.replace('Bearer ', '');
-    
-    console.log('Headers received:', {
-      authorization: authorization ? 'Present (masked)' : 'Missing',
-      apikey: apikey ? 'Present (masked)' : 'Missing'
-    });
-    
-    console.log('Extracted Supabase URL:', supabaseUrl);
-    console.log('Supabase Key status:', supabaseKey ? 'Present (masked)' : 'Missing');
-    
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing Supabase credentials for storage operations');
+    if (!apikey) {
+      throw new Error('Missing API key in request headers');
     }
     
-    console.log(`Processing video: ${videoUrl}`);
-    console.log(`Settings: ${JSON.stringify(settings)}`);
-    console.log(`Number of copies: ${numCopies}`);
-
+    const { videoUrl, settings, numCopies } = await req.json() as VideoProcessingRequest;
+    
+    // Extract Supabase URL from the video URL
+    const supabaseUrl = new URL(videoUrl).origin;
+    
+    console.log('Processing configuration:', {
+      videoUrl: videoUrl,
+      settingsEnabled: Object.entries(settings)
+        .filter(([_, v]) => typeof v === 'object' && v.enabled)
+        .map(([k]) => k),
+      numCopies: numCopies
+    });
+    
+    console.log(`API key present: ${apikey ? 'Yes' : 'No'}`);
+    
     // Download the original video once
     const videoData = await downloadVideo(videoUrl);
     
@@ -263,7 +261,7 @@ serve(async (req) => {
         processingParams, 
         outputFileName,
         supabaseUrl,
-        supabaseKey
+        apikey
       );
       
       // Add to results
