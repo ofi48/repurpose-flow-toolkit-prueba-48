@@ -64,8 +64,20 @@ const VideoRepurposer = () => {
   }, [results]);
 
   const handleFileSelect = (file: File) => {
+    // Reset progress and processing state when a new file is uploaded
+    setProgress(0);
+    setProcessing(false);
     setUploadedFile(file);
     setResults([]);
+    
+    // Ensure we stay on the process tab after file upload
+    setActiveTab("process");
+    
+    toast({
+      title: "File uploaded",
+      description: `${file.name} uploaded successfully.`,
+      variant: "default"
+    });
   };
 
   const handleStartProcess = () => {
@@ -93,7 +105,7 @@ const VideoRepurposer = () => {
             const fileName = `${uploadedFile.name.split('.')[0]}_variant_${i+1}.mp4`;
             
             // Create a mock video blob (in real app, this would be actual video data)
-            const mockVideoContent = `Simulated video content for ${fileName}`;
+            const mockVideoContent = new Uint8Array([0, 1, 2, 3]); // Minimal binary data to represent a file
             const blob = new Blob([mockVideoContent], { type: 'video/mp4' });
             const url = URL.createObjectURL(blob);
             
@@ -191,29 +203,46 @@ const VideoRepurposer = () => {
     setCurrentPreview(fileName);
     setShowPreview(true);
     
-    // In a real app, you would use the video URL to play it
     console.log(`Previewing ${fileName} from ${fileUrl}`);
   };
 
   const handleDownload = (fileName: string, fileUrl: string) => {
-    // Use the actual blob URL that was created
-    if (!downloadLinkRef.current) {
-      const link = document.createElement('a');
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      downloadLinkRef.current = link;
+    if (!fileUrl) {
+      toast({
+        title: "Download error",
+        description: "No file URL available to download.",
+        variant: "destructive"
+      });
+      return;
     }
     
-    // Set link properties and click it
-    downloadLinkRef.current.href = fileUrl;
-    downloadLinkRef.current.download = fileName;
-    downloadLinkRef.current.click();
-    
-    toast({
-      title: "Download started",
-      description: `Downloading ${fileName}`,
-      variant: "default"
-    });
+    try {
+      // Use the actual blob URL that was created
+      if (!downloadLinkRef.current) {
+        const link = document.createElement('a');
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        downloadLinkRef.current = link;
+      }
+      
+      // Set link properties and click it
+      downloadLinkRef.current.href = fileUrl;
+      downloadLinkRef.current.download = fileName;
+      downloadLinkRef.current.click();
+      
+      toast({
+        title: "Download started",
+        description: `Downloading ${fileName}`,
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download failed",
+        description: "There was an error downloading the file.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleDownloadAll = () => {
