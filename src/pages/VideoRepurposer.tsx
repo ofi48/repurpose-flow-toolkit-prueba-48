@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -166,11 +167,18 @@ const VideoRepurposer = () => {
         });
       }, 300);
       
+      // Get the Supabase API key from the current client
+      const supabaseKey = supabase.auth.session()?.access_token || 
+                          supabase.supabaseKey || 
+                          localStorage.getItem('supabase.auth.token');
+      
       // Call the process-video edge function to process the video
       const response = await fetch(`https://wowulglaoykdvfuqkpxd.supabase.co/functions/v1/process-video`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
+          'apikey': supabase.supabaseKey || ''
         },
         body: JSON.stringify({
           videoUrl: uploadedFileUrl,

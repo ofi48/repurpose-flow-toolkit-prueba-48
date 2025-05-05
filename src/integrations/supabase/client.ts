@@ -11,6 +11,9 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+// Add the supabaseKey as a property so we can access it elsewhere
+supabase.supabaseKey = SUPABASE_PUBLISHABLE_KEY;
+
 /**
  * Helper function to generate a unique file name for uploaded videos
  */

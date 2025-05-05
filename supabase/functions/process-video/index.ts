@@ -193,6 +193,14 @@ serve(async (req) => {
     const supabaseUrl = new URL(videoUrl).origin;
     const supabaseKey = apikey || authorization.replace('Bearer ', '');
     
+    console.log('Headers received:', {
+      authorization: authorization ? 'Present (masked)' : 'Missing',
+      apikey: apikey ? 'Present (masked)' : 'Missing'
+    });
+    
+    console.log('Extracted Supabase URL:', supabaseUrl);
+    console.log('Supabase Key status:', supabaseKey ? 'Present (masked)' : 'Missing');
+    
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Missing Supabase credentials for storage operations');
     }
