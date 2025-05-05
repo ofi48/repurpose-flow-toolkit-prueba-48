@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -168,9 +169,9 @@ const VideoRepurposer = () => {
       
       // Get the authentication token if available
       let authToken = null;
-      const { data } = await supabase.auth.getSession();
-      if (data?.session) {
-        authToken = data.session.access_token;
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session) {
+        authToken = sessionData.session.access_token;
       }
       
       // Call the process-video edge function to process the video
@@ -195,21 +196,21 @@ const VideoRepurposer = () => {
         throw new Error(`Processing failed: ${errorText}`);
       }
       
-      const data = await response.json();
+      const responseData = await response.json();
       
-      if (!data.success) {
-        throw new Error(data.error || "Processing failed.");
+      if (!responseData.success) {
+        throw new Error(responseData.error || "Processing failed.");
       }
       
       // Update the progress to 100%
       setProgress(100);
       
       // Set the results
-      setResults(data.results);
+      setResults(responseData.results);
       
       toast({
         title: "Processing complete",
-        description: `Generated ${data.results.length} video variants.`,
+        description: `Generated ${responseData.results.length} video variants.`,
         variant: "default"
       });
       
