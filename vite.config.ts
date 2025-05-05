@@ -23,17 +23,5 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     }
-  },
-  optimizeDeps: {
-    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/core'],
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          ffmpeg: ['@ffmpeg/ffmpeg', '@ffmpeg/core'],
-        },
-      },
-    },
-  },
+  }
 }));

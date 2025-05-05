@@ -196,11 +196,7 @@ const VideoRepurposer = () => {
         </div>
       </div>
 
-      {!ffmpegLoaded && (
-        <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-600/20 rounded-md">
-          <p className="text-yellow-500">Loading video processing library... This may take a moment.</p>
-        </div>
-      )}
+      {/* We no longer need the ffmpeg loading notification since we're not using it client-side */}
 
       <Tabs 
         value={activeTab} 

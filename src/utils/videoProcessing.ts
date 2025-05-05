@@ -54,29 +54,26 @@ export const buildComplexFilter = (params, settings: VideoPresetSettings) => {
   return filter;
 };
 
-// Server-side processing function (stub for future implementation)
+// Server-side processing function
 export const processVideoOnServer = async (file: File, params: any) => {
-  // This would be implemented to call your backend API
-  console.log('This would send the video to a server for processing:', { file, params });
+  console.log('Sending video to server for processing:', { params });
   
-  // Example implementation:
-  /*
-  const formData = new FormData();
-  formData.append('video', file);
-  formData.append('params', JSON.stringify(params));
-  
-  const response = await fetch('https://your-api.com/process-video', {
-    method: 'POST',
-    body: formData
-  });
-  
-  return await response.json();
-  */
-  
-  // For now, return a mock implementation
-  return {
-    url: URL.createObjectURL(file),
-    name: `processed_${file.name}`,
-    processingDetails: params
-  };
+  try {
+    // Create a mock implementation that simulates server processing
+    // In a real implementation, you would upload the file to your server
+    // and get back processed files
+    
+    // Simulate processing time
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Return a mock result
+    return {
+      url: URL.createObjectURL(file),
+      name: `processed_${file.name}`,
+      processingDetails: params
+    };
+  } catch (error) {
+    console.error('Error processing video:', error);
+    throw error;
+  }
 };

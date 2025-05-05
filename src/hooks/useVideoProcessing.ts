@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { VideoPresetSettings } from '@/types/preset';
 import { useToast } from "@/hooks/use-toast";
-import { generateProcessingParameters } from '@/utils/videoProcessing';
+import { generateProcessingParameters, processVideoOnServer } from '@/utils/videoProcessing';
 import { uploadFileWithProgress } from "@/integrations/supabase/client";
 
 export const useVideoProcessing = () => {
@@ -12,8 +12,8 @@ export const useVideoProcessing = () => {
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<{name: string, url: string, processingDetails?: any}[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
-  // Remove ffmpeg dependency
-  const ffmpegLoaded = true; // Always consider it loaded since we're not using it anymore
+  // We consider FFmpeg always loaded since we're no longer using it directly
+  const ffmpegLoaded = true;
   const { toast } = useToast();
 
   const handleFileSelect = async (file: File) => {
@@ -27,9 +27,6 @@ export const useVideoProcessing = () => {
     setUploadProgress(0);
     
     try {
-      // Generate a unique filename
-      const fileName = `input_${Date.now()}.mp4`;
-      
       // Set the uploaded file details
       setUploadedFileUrl(URL.createObjectURL(file));
       
@@ -86,12 +83,10 @@ export const useVideoProcessing = () => {
         // and get back a processed video URL
         await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing time
         
-        // Add to results with dummy data
-        processedVideos.push({
-          name: `variant_${i + 1}.mp4`,
-          url: URL.createObjectURL(uploadedFile), // Just use the original file for demo
-          processingDetails: params
-        });
+        // Process video on server (currently just a mock)
+        const processedVideo = await processVideoOnServer(uploadedFile, params);
+        
+        processedVideos.push(processedVideo);
       }
       
       // Update the progress to 100%
