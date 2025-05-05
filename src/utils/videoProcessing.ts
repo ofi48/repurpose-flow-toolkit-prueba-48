@@ -1,5 +1,4 @@
 
-import { fetchFile } from '@ffmpeg/ffmpeg';
 import { VideoPresetSettings } from '@/types/preset';
 
 // Generate a random number between min and max
@@ -23,7 +22,7 @@ export const generateProcessingParameters = (settings: VideoPresetSettings) => {
   return params;
 };
 
-// Build FFmpeg complex filter for a video variant
+// Build filter string for video processing (for API reference, not used locally)
 export const buildComplexFilter = (params, settings: VideoPresetSettings) => {
   let filter = '';
   
@@ -55,65 +54,29 @@ export const buildComplexFilter = (params, settings: VideoPresetSettings) => {
   return filter;
 };
 
-// Process video with FFmpeg
-export const processVideoWithFFmpeg = async (
-  ffmpeg: any, 
-  inputFile: File, 
-  inputFileName: string, 
-  outputFileName: string, 
-  params: any,
-  settings: VideoPresetSettings
-) => {
-  try {
-    // Write the input file to FFmpeg's virtual file system
-    ffmpeg.FS('writeFile', inputFileName, await fetchFile(inputFile));
-    
-    // Build the FFmpeg command
-    const filterComplex = buildComplexFilter(params, settings);
-    const command = ['-i', inputFileName];
-    
-    // Add trim parameters if enabled
-    if (settings.trimStart.enabled && params.trimStart > 0) {
-      command.push('-ss', `${params.trimStart}`);
-    }
-    
-    // Add speed/tempo adjustment if enabled
-    if (settings.speed.enabled && params.speed !== 1) {
-      command.push('-filter:a', `atempo=${params.speed}`, '-filter:v', `setpts=1/${params.speed}*PTS`);
-    }
-    
-    // Add video filters if any
-    if (filterComplex) {
-      command.push('-vf', filterComplex);
-    }
-    
-    // Add audio bitrate if enabled
-    if (settings.audioBitrate.enabled) {
-      command.push('-b:a', `${params.audioBitrate}k`);
-    }
-    
-    // Add output file name and format
-    command.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '22', outputFileName);
-    
-    console.log('FFmpeg command:', command);
-    
-    // Execute the command
-    await ffmpeg.run(...command);
-    
-    // Read the result
-    const data = ffmpeg.FS('readFile', outputFileName);
-    
-    // Create a URL for the processed video
-    const blob = new Blob([data.buffer], { type: 'video/mp4' });
-    
-    return {
-      blob,
-      url: URL.createObjectURL(blob),
-      name: outputFileName,
-      processingDetails: params
-    };
-  } catch (error) {
-    console.error('Error processing video with FFmpeg:', error);
-    throw error;
-  }
+// Server-side processing function (stub for future implementation)
+export const processVideoOnServer = async (file: File, params: any) => {
+  // This would be implemented to call your backend API
+  console.log('This would send the video to a server for processing:', { file, params });
+  
+  // Example implementation:
+  /*
+  const formData = new FormData();
+  formData.append('video', file);
+  formData.append('params', JSON.stringify(params));
+  
+  const response = await fetch('https://your-api.com/process-video', {
+    method: 'POST',
+    body: formData
+  });
+  
+  return await response.json();
+  */
+  
+  // For now, return a mock implementation
+  return {
+    url: URL.createObjectURL(file),
+    name: `processed_${file.name}`,
+    processingDetails: params
+  };
 };
