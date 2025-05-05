@@ -1,5 +1,4 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -18,7 +17,7 @@ const VideoRepurposer = () => {
   const [numCopies, setNumCopies] = useState(3);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [results, setResults] = useState<string[]>([]);
+  const [results, setResults] = useState<{name: string, url: string}[]>([]);
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<{name: string, settings: VideoPresetSettings}[]>([]);
   const [showPreview, setShowPreview] = useState(false);
@@ -39,6 +38,30 @@ const VideoRepurposer = () => {
     audioBitrate: { min: 96, max: 128, enabled: false },
     flipHorizontal: false
   });
+
+  useEffect(() => {
+    // Create a hidden download link if it doesn't exist
+    if (!downloadLinkRef.current) {
+      const link = document.createElement('a');
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      downloadLinkRef.current = link;
+    }
+    
+    return () => {
+      // Clean up any blob URLs when component unmounts
+      results.forEach(result => {
+        if (result.url.startsWith('blob:')) {
+          URL.revokeObjectURL(result.url);
+        }
+      });
+      
+      // Remove the download link
+      if (downloadLinkRef.current) {
+        document.body.removeChild(downloadLinkRef.current);
+      }
+    };
+  }, [results]);
 
   const handleFileSelect = (file: File) => {
     setUploadedFile(file);
@@ -64,11 +87,22 @@ const VideoRepurposer = () => {
           clearInterval(interval);
           setProcessing(false);
           
-          // Mock results - create blob URLs to make videos downloadable
+          // Generate mock video blobs for download
           const mockResults = [];
           for (let i = 0; i < numCopies; i++) {
-            mockResults.push(`${uploadedFile.name.split('.')[0]}_variant_${i+1}.mp4`);
+            const fileName = `${uploadedFile.name.split('.')[0]}_variant_${i+1}.mp4`;
+            
+            // Create a mock video blob (in real app, this would be actual video data)
+            const mockVideoContent = `Simulated video content for ${fileName}`;
+            const blob = new Blob([mockVideoContent], { type: 'video/mp4' });
+            const url = URL.createObjectURL(blob);
+            
+            mockResults.push({
+              name: fileName,
+              url: url
+            });
           }
+          
           setResults(mockResults);
           
           toast({
@@ -153,26 +187,16 @@ const VideoRepurposer = () => {
     });
   };
 
-  const handlePreview = (fileName: string) => {
+  const handlePreview = (fileName: string, fileUrl: string) => {
     setCurrentPreview(fileName);
     setShowPreview(true);
     
-    // In a real app, you would fetch the video URL from your backend
-    console.log(`Previewing ${fileName}`);
+    // In a real app, you would use the video URL to play it
+    console.log(`Previewing ${fileName} from ${fileUrl}`);
   };
 
-  const handleDownload = (fileName: string) => {
-    // In a real app, you would get the actual file URL from your backend
-    // For now, we'll simulate a download by creating a dummy blob
-    
-    // Create a blob that represents the video (this is just a placeholder)
-    const blob = new Blob(['Simulated video content for ' + fileName], 
-      { type: 'video/mp4' });
-    
-    // Create a URL for the blob
-    const url = URL.createObjectURL(blob);
-    
-    // Create a temporary link element
+  const handleDownload = (fileName: string, fileUrl: string) => {
+    // Use the actual blob URL that was created
     if (!downloadLinkRef.current) {
       const link = document.createElement('a');
       link.style.display = 'none';
@@ -181,12 +205,9 @@ const VideoRepurposer = () => {
     }
     
     // Set link properties and click it
-    downloadLinkRef.current.href = url;
+    downloadLinkRef.current.href = fileUrl;
     downloadLinkRef.current.download = fileName;
     downloadLinkRef.current.click();
-    
-    // Clean up the URL
-    setTimeout(() => URL.revokeObjectURL(url), 100);
     
     toast({
       title: "Download started",
@@ -196,16 +217,24 @@ const VideoRepurposer = () => {
   };
 
   const handleDownloadAll = () => {
+    if (results.length === 0) {
+      toast({
+        title: "No results available",
+        description: "Process a video first to generate results.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     toast({
       title: "Preparing download",
-      description: "Preparing to download all videos...",
+      description: "Downloading all videos...",
       variant: "default"
     });
     
-    // In a real app, you would use JSZip or a similar library to zip multiple files
-    // For now, just simulate downloading each file with a delay
+    // Download each file with a delay
     results.forEach((result, index) => {
-      setTimeout(() => handleDownload(result), index * 500);
+      setTimeout(() => handleDownload(result.name, result.url), index * 500);
     });
   };
 
@@ -450,13 +479,13 @@ const VideoRepurposer = () => {
                   <Video className="h-12 w-12 text-gray-600" />
                 </div>
                 <div className="p-3">
-                  <p className="font-medium truncate">{result}</p>
+                  <p className="font-medium truncate">{result.name}</p>
                   <div className="flex items-center justify-between mt-2">
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="flex-1 mr-2"
-                      onClick={() => handlePreview(result)}
+                      onClick={() => handlePreview(result.name, result.url)}
                     >
                       <Play className="h-4 w-4 mr-1" />
                       Preview
@@ -464,7 +493,7 @@ const VideoRepurposer = () => {
                     <Button 
                       size="sm" 
                       className="flex-1"
-                      onClick={() => handleDownload(result)}
+                      onClick={() => handleDownload(result.name, result.url)}
                     >
                       <Download className="h-4 w-4 mr-1" />
                       Download
