@@ -1,5 +1,4 @@
-
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +16,7 @@ const ImageSpoofer = () => {
   const [numCopies, setNumCopies] = useState(3);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [results, setResults] = useState<{ name: string; url: string }[]>([]);
+  const [results, setResults] = useState<string[]>([]);
   const { toast } = useToast();
 
   // Settings
@@ -38,86 +37,7 @@ const ImageSpoofer = () => {
     setResults([]);
   };
 
-  const processImage = (file: File, index: number): Promise<{ name: string; url: string }> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          
-          if (!ctx) {
-            resolve({ name: `${file.name.split('.')[0]}_variant_${index+1}.jpg`, url: '' });
-            return;
-          }
-          
-          // Apply random transformations based on settings
-          if (settings.flipHorizontal && Math.random() > 0.5) {
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-          }
-          
-          // Draw the image
-          ctx.drawImage(img, 0, 0);
-          
-          // Apply filters if enabled
-          if (settings.brightness.enabled) {
-            const brightness = settings.brightness.min + Math.random() * (settings.brightness.max - settings.brightness.min);
-            ctx.filter = `brightness(${brightness})`;
-            ctx.drawImage(canvas, 0, 0);
-            ctx.filter = 'none';
-          }
-          
-          if (settings.contrast.enabled) {
-            const contrast = settings.contrast.min + Math.random() * (settings.contrast.max - settings.contrast.min);
-            ctx.filter = `contrast(${contrast})`;
-            ctx.drawImage(canvas, 0, 0);
-            ctx.filter = 'none';
-          }
-          
-          if (settings.saturation.enabled) {
-            const saturation = settings.saturation.min + Math.random() * (settings.saturation.max - settings.saturation.min);
-            ctx.filter = `saturate(${saturation})`;
-            ctx.drawImage(canvas, 0, 0);
-            ctx.filter = 'none';
-          }
-          
-          if (settings.blurBorder) {
-            // Apply subtle blur to edges
-            const borderWidth = Math.min(img.width, img.height) * 0.03; // 3% of the smallest dimension
-            const gradient = ctx.createRadialGradient(
-              canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) / 2 - borderWidth,
-              canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) / 2
-            );
-            gradient.addColorStop(0, 'rgba(0,0,0,0)');
-            gradient.addColorStop(1, 'rgba(0,0,0,0.1)');
-            ctx.fillStyle = gradient;
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.globalCompositeOperation = 'source-over';
-          }
-          
-          // Get result as data URL with compression if enabled
-          let quality = 0.92; // Default quality
-          if (settings.compression.enabled) {
-            quality = (settings.compression.min + Math.random() * (settings.compression.max - settings.compression.min)) / 100;
-          }
-          
-          const resultName = `${file.name.split('.')[0]}_variant_${index+1}.jpg`;
-          const resultUrl = canvas.toDataURL('image/jpeg', quality);
-          
-          resolve({ name: resultName, url: resultUrl });
-        };
-        img.src = e.target?.result as string;
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleStartProcess = async () => {
+  const handleStartProcess = () => {
     if (uploadedFiles.length === 0) {
       toast({
         title: "No files selected",
@@ -128,42 +48,34 @@ const ImageSpoofer = () => {
     }
 
     setProcessing(true);
-    setResults([]);
-    setProgress(0);
     
-    const totalOperations = uploadedFiles.length * numCopies;
-    let completedOperations = 0;
-    const newResults: { name: string; url: string }[] = [];
-    
-    try {
-      for (const file of uploadedFiles) {
-        for (let i = 0; i < numCopies; i++) {
-          const result = await processImage(file, i);
-          newResults.push(result);
+    // Simulate processing - in a real app, this would call an API
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setProcessing(false);
           
-          completedOperations++;
-          setProgress((completedOperations / totalOperations) * 100);
+          // Mock results
+          const mockResults = [];
+          for (let i = 0; i < uploadedFiles.length; i++) {
+            for (let j = 0; j < numCopies; j++) {
+              mockResults.push(`${uploadedFiles[i].name.split('.')[0]}_variant_${j+1}.jpg`);
+            }
+          }
+          setResults(mockResults);
+          
+          toast({
+            title: "Processing complete",
+            description: `Generated ${mockResults.length} image variants.`,
+            variant: "default"
+          });
+          
+          return 100;
         }
-      }
-      
-      setResults(newResults);
-      
-      toast({
-        title: "Processing complete",
-        description: `Generated ${newResults.length} image variants.`,
-        variant: "default"
+        return prev + (100 / (uploadedFiles.length * numCopies * 5));
       });
-    } catch (error) {
-      console.error("Error processing images:", error);
-      toast({
-        title: "Processing failed",
-        description: "There was an error generating image variants.",
-        variant: "destructive"
-      });
-    } finally {
-      setProcessing(false);
-      setProgress(100);
-    }
+    }, 100);
   };
 
   const updateSettingParam = (
@@ -181,29 +93,6 @@ const ImageSpoofer = () => {
         newSettings[param] = { ...prev[param], [subParam]: value };
       }
       return newSettings;
-    });
-  };
-
-  const handleDownload = (result: { name: string; url: string }) => {
-    const link = document.createElement('a');
-    link.href = result.url;
-    link.download = result.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleDownloadAll = () => {
-    results.forEach((result, index) => {
-      setTimeout(() => {
-        handleDownload(result);
-      }, index * 100); // Add a small delay between downloads to avoid browser issues
-    });
-    
-    toast({
-      title: "Download started",
-      description: `Downloading ${results.length} images...`,
-      variant: "default"
     });
   };
 
@@ -359,23 +248,11 @@ const ImageSpoofer = () => {
                 {results.map((result, index) => (
                   <div key={index} className="bg-app-dark-accent border border-gray-700 rounded-lg overflow-hidden">
                     <div className="aspect-square bg-black flex items-center justify-center">
-                      {result.url ? (
-                        <img 
-                          src={result.url} 
-                          alt={result.name} 
-                          className="object-contain w-full h-full"
-                        />
-                      ) : (
-                        <ImageIcon className="h-10 w-10 text-gray-600" />
-                      )}
+                      <ImageIcon className="h-10 w-10 text-gray-600" />
                     </div>
                     <div className="p-2">
-                      <p className="text-xs font-medium truncate">{result.name}</p>
-                      <Button 
-                        size="sm" 
-                        className="w-full mt-2"
-                        onClick={() => handleDownload(result)}
-                      >
+                      <p className="text-xs font-medium truncate">{result}</p>
+                      <Button size="sm" className="w-full mt-2">
                         <Download className="h-3 w-3 mr-1" />
                         Download
                       </Button>
@@ -390,7 +267,7 @@ const ImageSpoofer = () => {
                     Generated {results.length} image variants
                   </p>
                 </div>
-                <Button onClick={handleDownloadAll}>
+                <Button>
                   <Download className="mr-2 h-4 w-4" />
                   Download All
                 </Button>
