@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,7 +10,7 @@ import { Check, Download, Play, Save, Video, X } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { VideoPresetSettings } from '@/types/preset';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
-import { supabase, generateFileName, getPublicUrl, uploadFileWithProgress } from "@/integrations/supabase/client";
+import { supabase, generateFileName, getPublicUrl, uploadFileWithProgress, SUPABASE_ANON_KEY } from "@/integrations/supabase/client";
 
 const VideoRepurposer = () => {
   const [activeTab, setActiveTab] = useState("process");
@@ -167,18 +166,20 @@ const VideoRepurposer = () => {
         });
       }, 300);
       
-      // Get the Supabase API key from the current client
-      const supabaseKey = supabase.auth.session()?.access_token || 
-                          supabase.supabaseKey || 
-                          localStorage.getItem('supabase.auth.token');
+      // Get the authentication token if available
+      let authToken = null;
+      const { data } = await supabase.auth.getSession();
+      if (data?.session) {
+        authToken = data.session.access_token;
+      }
       
       // Call the process-video edge function to process the video
       const response = await fetch(`https://wowulglaoykdvfuqkpxd.supabase.co/functions/v1/process-video`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseKey}`,
-          'apikey': supabase.supabaseKey || ''
+          'Authorization': authToken ? `Bearer ${authToken}` : '',
+          'apikey': SUPABASE_ANON_KEY
         },
         body: JSON.stringify({
           videoUrl: uploadedFileUrl,
