@@ -1,3 +1,4 @@
+
 import { VideoPresetSettings } from '@/types/preset';
 
 // Generate a random number between min and max
@@ -65,8 +66,8 @@ export const processVideoOnServer = async (file: File, params: any) => {
     
     console.log('FormData created with:', file.name, 'and params');
     
-    // Making the request through our Supabase Edge Function
-    const response = await fetch('/process-video', {
+    // Making the request directly to Railway server with correct endpoint
+    const response = await fetch('https://video-server-production-d7af.up.railway.app/process-video', {
       method: 'POST',
       body: formData,
       headers: {
@@ -84,7 +85,7 @@ export const processVideoOnServer = async (file: File, params: any) => {
       const errorText = await response.text();
       console.error('Non-JSON response received:', errorText.substring(0, 500));
       
-      throw new Error(`Server returned a non-JSON response. Content type: ${contentType || 'undefined'}. Please try again later or check if the server is running.`);
+      throw new Error(`Server returned a non-JSON response. Content type: ${contentType || 'undefined'}. Make sure you're using the correct endpoint: /process-video`);
     }
     
     // Try to parse JSON

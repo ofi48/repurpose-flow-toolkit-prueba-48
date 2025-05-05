@@ -20,19 +20,15 @@ async function handleVideoProcessing(req: Request): Promise<Response> {
     // Get the request body
     const formData = await req.formData();
     
-    // Forward the request to Railway - Use the direct URL
-    const railwayUrl = "https://video-server-production-d7af.up.railway.app";
+    // Forward the request to Railway - Use the direct URL with specific endpoint
+    const railwayUrl = "https://video-server-production-d7af.up.railway.app/process-video";
     
     // Log request details for debugging
-    console.log("Forwarding request to Railway:", `${railwayUrl}/process-video`);
+    console.log("Forwarding request to Railway:", railwayUrl);
     console.log("FormData keys:", [...formData.keys()]);
     
-    // Set up proper request headers
-    const headers = new Headers();
-    headers.set('Content-Type', 'multipart/form-data');
-    
-    // Send the request to Railway with explicit headers
-    const railwayResponse = await fetch(`${railwayUrl}/process-video`, {
+    // Send the request to Railway with proper headers
+    const railwayResponse = await fetch(railwayUrl, {
       method: 'POST',
       body: formData,
       headers: {
@@ -40,7 +36,7 @@ async function handleVideoProcessing(req: Request): Promise<Response> {
       }
     });
     
-    // Log the raw response details first
+    // Log the raw response details for debugging
     console.log("Railway response status:", railwayResponse.status);
     console.log("Railway response headers:", Object.fromEntries(railwayResponse.headers.entries()));
     
@@ -51,15 +47,15 @@ async function handleVideoProcessing(req: Request): Promise<Response> {
     if (!contentType || !contentType.includes('application/json')) {
       // If not JSON, get text for better error message
       const textResponse = await railwayResponse.text();
-      console.error('Non-JSON response from Railway:', textResponse.substring(0, 500));
+      console.error('Non-JSON response from Railway (first 500 chars):', textResponse.substring(0, 500));
       
-      // Try to determine if it's an HTML error page
+      // Determine if it's an HTML error page
       const isHtmlError = textResponse.toLowerCase().includes('<!doctype html') || 
                           textResponse.toLowerCase().includes('<html');
       
       let errorMessage = 'Unexpected response from video processing server.';
       if (isHtmlError) {
-        errorMessage = 'The video processing server returned an HTML page instead of JSON. The server might be down or experiencing issues.';
+        errorMessage = 'The video processing server returned an HTML page instead of JSON. Ensure you are using the correct endpoint: /process-video';
       }
       
       return new Response(

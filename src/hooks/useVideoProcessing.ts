@@ -83,7 +83,10 @@ export const useVideoProcessing = () => {
         // Send request to process-video endpoint which forwards to Railway
         const response = await fetch('/process-video', {
           method: 'POST',
-          body: formData
+          body: formData,
+          headers: {
+            'Accept': 'application/json'
+          }
         });
         
         setProgress(80);
@@ -98,8 +101,8 @@ export const useVideoProcessing = () => {
         
         if (!contentType || !contentType.includes('application/json')) {
           const textResponse = await response.text();
-          console.error('Non-JSON response received (first 500 chars):', textResponse.substring(0, 500));
-          throw new Error(`Server returned an unexpected response format. Content-Type: ${contentType || 'undefined'}`);
+          console.error('Non-JSON response received:', textResponse.substring(0, 500));
+          throw new Error(`Server returned an unexpected response format. Content-Type: ${contentType || 'undefined'}\n${textResponse.substring(0, 200)}`);
         }
         
         let responseData;

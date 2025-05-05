@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
       "Cross-Origin-Opener-Policy": "same-origin",
       "Cross-Origin-Embedder-Policy": "require-corp"
     },
-    // We're using the Supabase Edge Function, so no proxy needed
+    // No proxy needed - we connect directly to Railway
     proxy: {}
   },
   plugins: [
