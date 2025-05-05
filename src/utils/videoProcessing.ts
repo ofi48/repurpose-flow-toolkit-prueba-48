@@ -1,4 +1,3 @@
-
 import { VideoPresetSettings } from '@/types/preset';
 
 // Generate a random number between min and max
@@ -54,40 +53,61 @@ export const buildComplexFilter = (params, settings: VideoPresetSettings) => {
   return filter;
 };
 
-// Server-side processing function that connects to Railway
+// Server-side processing function that connects to Railway through Supabase Edge Function
 export const processVideoOnServer = async (file: File, params: any) => {
-  console.log('Sending video to Railway server for processing:', { params });
+  console.log('Sending video for processing with parameters:', { params });
   
   try {
-    // Create form data to send to Railway
+    // Create form data to send
     const formData = new FormData();
     formData.append('video', file);
     formData.append('params', JSON.stringify(params));
     
-    // Set Railway server URL
-    const railwayServerUrl = '/process-video';
+    console.log('FormData created with:', file.name, 'and params');
     
-    // Send request to Railway server with improved error handling
-    const response = await fetch(railwayServerUrl, {
+    // Making the request through our Supabase Edge Function
+    const response = await fetch('/process-video', {
       method: 'POST',
       body: formData,
+      headers: {
+        'Accept': 'application/json'
+      }
     });
     
-    // Check if response is JSON
+    console.log('Response received:', response.status, response.statusText);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+    
+    // Check content type first
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
-      // If not JSON, get text response for better error message
-      const textResponse = await response.text();
-      console.error('Non-JSON response received:', textResponse.substring(0, 200) + '...');
-      throw new Error('Server returned a non-JSON response. The server might be experiencing issues.');
+      // Try to extract text for better error reporting
+      const errorText = await response.text();
+      console.error('Non-JSON response received:', errorText.substring(0, 500));
+      
+      throw new Error(`Server returned a non-JSON response. Content type: ${contentType || 'undefined'}. Please try again later or check if the server is running.`);
     }
     
-    // Parse JSON response
-    const data = await response.json();
+    // Try to parse JSON
+    let data;
+    try {
+      data = await response.json();
+    } catch (error) {
+      console.error('JSON parsing error:', error);
+      throw new Error('Failed to parse server response. The server might be experiencing issues.');
+    }
     
+    // Check for error status
     if (!response.ok) {
-      throw new Error(data.error || 'Error processing video on Railway server');
+      const errorMessage = data && data.error 
+        ? data.error 
+        : `Error ${response.status}: Unable to process video`;
+        
+      console.error('Server error:', errorMessage, data);
+      throw new Error(errorMessage);
     }
+    
+    // Handle successful response
+    console.log('Processing succeeded, data:', data);
     
     // Transform Railway URLs to be accessible
     if (data.results) {
@@ -105,7 +125,7 @@ export const processVideoOnServer = async (file: File, params: any) => {
       processingDetails: params
     };
   } catch (error) {
-    console.error('Error processing video on Railway server:', error);
+    console.error('Error processing video:', error);
     throw error;
   }
 };

@@ -13,14 +13,8 @@ export default defineConfig(({ mode }) => ({
       "Cross-Origin-Opener-Policy": "same-origin",
       "Cross-Origin-Embedder-Policy": "require-corp"
     },
-    proxy: {
-      // Disable the proxy to use Supabase Edge Function instead
-      // '/process-video': {
-      //   target: 'https://video-server-production-d7af.up.railway.app',
-      //   changeOrigin: true,
-      //   secure: false,
-      // }
-    }
+    // We're using the Supabase Edge Function, so no proxy needed
+    proxy: {}
   },
   plugins: [
     react(),
