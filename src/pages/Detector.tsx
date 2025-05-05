@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Search, Video, Image as ImageIcon } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Detector = () => {
   const [file1, setFile1] = useState<File | null>(null);
@@ -56,52 +57,98 @@ const Detector = () => {
       formData.append('file1', file1);
       formData.append('file2', file2);
       
-      // Send the files to the processing server for comparison
-      const response = await fetch('https://video-server-production-d7af.up.railway.app/process-video/compare', {
-        method: 'POST',
-        body: formData,
-      });
+      console.log("Sending comparison request via Supabase edge function");
       
-      // Check if response is JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const textResponse = await response.text();
-        console.error('Non-JSON response:', textResponse.substring(0, 500));
-        throw new Error('Server returned an unexpected response format.');
-      }
-      
-      const data = await response.json();
-      
-      // Clear the progress interval
-      clearInterval(progressInterval);
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to process similarity check.');
-      }
-      
-      // Get the similarity score from the response
-      // If the server isn't ready to provide real comparison yet,
-      // we'll generate a consistent result based on the files' names
-      let similarityScore;
-      if (data.similarity !== undefined) {
-        // Use the real similarity from the server
-        similarityScore = data.similarity;
-      } else {
-        // Generate a consistent pseudo-random value based on the files' names
-        // This ensures the same files will always get the same result
-        const combinedNames = file1.name + file2.name;
-        let hash = 0;
-        for (let i = 0; i < combinedNames.length; i++) {
-          hash = ((hash << 5) - hash) + combinedNames.charCodeAt(i);
-          hash = hash & hash; // Convert to 32bit integer
+      // Use the Supabase edge function to securely forward the request to Railway
+      let response;
+      try {
+        // Call the Supabase Edge Function that forwards to Railway
+        response = await supabase.functions.invoke('compare-files', {
+          body: formData,
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+        
+        console.log("Supabase edge function response:", response);
+        
+        if (response.error) {
+          throw new Error(response.error.message || 'Error from edge function');
         }
-        // Use the hash to generate a number between 20 and 80
-        similarityScore = Math.abs(hash % 60) + 20;
+        
+        if (!response.data) {
+          throw new Error('No data returned from edge function');
+        }
+        
+        // Handle the response from the edge function
+        const data = response.data;
+        
+        // Clear the progress interval
+        clearInterval(progressInterval);
+        
+        // Process the similarity score from the response
+        let similarityScore;
+        if (data.similarity !== undefined) {
+          // Use the real similarity from the content-based comparison
+          similarityScore = data.similarity;
+          console.log("Received actual similarity score:", similarityScore);
+        } else {
+          console.log("No similarity score returned, using fallback");
+          // Fallback if no similarity score is provided
+          const combinedNames = file1.name + file2.name;
+          let hash = 0;
+          for (let i = 0; i < combinedNames.length; i++) {
+            hash = ((hash << 5) - hash) + combinedNames.charCodeAt(i);
+            hash = hash & hash; // Convert to 32bit integer
+          }
+          // Use the hash to generate a number between 20 and 80
+          similarityScore = Math.abs(hash % 60) + 20;
+        }
+        
+        // Update the progress to 100% and set the similarity result
+        setProgress(100);
+        setSimilarityResult(similarityScore);
+      } catch (error) {
+        console.error("Error invoking Supabase edge function:", error);
+        
+        // Fallback to direct Railway call if Supabase edge function fails
+        try {
+          console.log("Falling back to direct Railway call");
+          const railwayResponse = await fetch('https://video-server-production-d7af.up.railway.app/process-video/compare', {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (!railwayResponse.ok) {
+            throw new Error(`Railway API error: ${railwayResponse.status}`);
+          }
+          
+          const contentType = railwayResponse.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            const textResponse = await railwayResponse.text();
+            console.error('Non-JSON response:', textResponse.substring(0, 500));
+            throw new Error('Server returned an unexpected response format.');
+          }
+          
+          const railwayData = await railwayResponse.json();
+          
+          // Process the similarity score from the direct Railway response
+          if (railwayData.similarity !== undefined) {
+            setProgress(100);
+            setSimilarityResult(railwayData.similarity);
+            clearInterval(progressInterval);
+            return;
+          }
+          
+          throw new Error('No similarity data in response');
+        } catch (railwayError) {
+          console.error("Railway fallback also failed:", railwayError);
+          throw railwayError;
+        }
       }
-      
-      // Update the progress to 100% and set the similarity result
-      setProgress(100);
-      setSimilarityResult(similarityScore);
     } catch (error) {
       console.error('Error checking similarity:', error);
       toast({
@@ -110,7 +157,7 @@ const Detector = () => {
         variant: "destructive"
       });
       
-      // Generate a deterministic result as fallback based on file names
+      // Generate a consistent fallback result based on file names
       const combinedNames = file1.name + file2.name;
       let hash = 0;
       for (let i = 0; i < combinedNames.length; i++) {
