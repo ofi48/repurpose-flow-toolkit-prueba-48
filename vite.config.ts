@@ -14,9 +14,9 @@ export default defineConfig(({ mode }) => ({
       "Cross-Origin-Embedder-Policy": "require-corp"
     },
     proxy: {
-      // Proxy API requests to Railway server - update this with your Railway URL
+      // Proxy API requests to Railway server
       '/process-video': {
-        target: 'YOUR_RAILWAY_URL_HERE', // Replace with your actual Railway URL
+        target: 'https://video-server-production-d7af.up.railway.app',
         changeOrigin: true,
         secure: false,
       }

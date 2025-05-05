@@ -68,40 +68,58 @@ export const useVideoProcessing = () => {
     setResults([]);
     
     try {
-      // Process videos using Railway server
-      const processedVideos = [];
-      const totalVariants = numCopies;
+      // Create formData for Railway request
+      const formData = new FormData();
+      formData.append('video', uploadedFile);
+      formData.append('settings', JSON.stringify(settings));
+      formData.append('numCopies', numCopies.toString());
       
-      for (let i = 0; i < totalVariants; i++) {
-        // Update progress
-        setProgress(Math.round((i / totalVariants) * 100));
-        
-        // Generate parameters for this variant
-        const params = generateProcessingParameters(settings);
-        
-        // Process video using Railway server
-        const processedVideo = await processVideoOnServer(uploadedFile, params);
-        processedVideos.push(processedVideo);
-        
-        // Small delay between requests to avoid overwhelming the server
-        if (i < totalVariants - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
+      // Make a single request to Railway with all settings
+      setProgress(20);
+      
+      // Send request to process-video endpoint which forwards to Railway
+      const response = await fetch('/process-video', {
+        method: 'POST',
+        body: formData
+      });
+      
+      setProgress(80);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Processing failed");
       }
+      
+      const responseData = await response.json();
       
       // Update the progress to 100%
       setProgress(100);
       
       // Set the results
-      setResults(processedVideos);
-      
-      toast({
-        title: "Processing complete",
-        description: `Generated ${processedVideos.length} video variants.`,
-        variant: "default"
-      });
-      
-      return processedVideos;
+      if (responseData.results && Array.isArray(responseData.results)) {
+        const processedVideos = responseData.results.map(result => ({
+          name: result.name,
+          url: result.url.startsWith('http') ? result.url : `https://video-server-production-d7af.up.railway.app${result.url}`,
+          processingDetails: result.processingDetails
+        }));
+        
+        setResults(processedVideos);
+        
+        toast({
+          title: "Processing complete",
+          description: `Generated ${processedVideos.length} video variants.`,
+          variant: "default"
+        });
+        
+        return processedVideos;
+      } else {
+        toast({
+          title: "Processing complete",
+          description: "Video processing completed successfully.",
+          variant: "default"
+        });
+        return [];
+      }
     } catch (error) {
       console.error('Error processing video with Railway:', error);
       toast({

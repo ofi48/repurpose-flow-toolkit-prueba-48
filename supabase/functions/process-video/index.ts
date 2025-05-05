@@ -21,8 +21,7 @@ async function handleVideoProcessing(req: Request): Promise<Response> {
     const formData = await req.formData();
     
     // Forward the request to Railway
-    // Replace with your actual Railway URL
-    const railwayUrl = "YOUR_RAILWAY_URL_HERE"; // Replace with actual Railway URL
+    const railwayUrl = "https://video-server-production-d7af.up.railway.app";
     
     const railwayResponse = await fetch(`${railwayUrl}/process-video`, {
       method: 'POST',

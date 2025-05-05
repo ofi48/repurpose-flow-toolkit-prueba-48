@@ -1,3 +1,4 @@
+
 import { VideoPresetSettings } from '@/types/preset';
 
 // Generate a random number between min and max
@@ -63,9 +64,8 @@ export const processVideoOnServer = async (file: File, params: any) => {
     formData.append('video', file);
     formData.append('params', JSON.stringify(params));
     
-    // Set Railway server URL - replace with your actual Railway URL
-    // Using the port 8080 you mentioned for local development
-    const railwayServerUrl = 'http://localhost:8080/process-video';
+    // Set Railway server URL
+    const railwayServerUrl = '/process-video';
     
     // Send request to Railway server
     const response = await fetch(railwayServerUrl, {
@@ -80,9 +80,18 @@ export const processVideoOnServer = async (file: File, params: any) => {
     
     const data = await response.json();
     
-    // Return processed video data
+    // Transform Railway URLs to be accessible
+    if (data.results) {
+      return data.results.map(result => ({
+        url: result.url.startsWith('http') ? result.url : `https://video-server-production-d7af.up.railway.app${result.url}`,
+        name: result.name || `processed_${file.name}`,
+        processingDetails: result.processingDetails || params
+      }));
+    }
+    
+    // Fallback for single result
     return {
-      url: data.url || URL.createObjectURL(file), // Use returned URL or fallback to original
+      url: data.url || URL.createObjectURL(file),
       name: data.name || `processed_${file.name}`,
       processingDetails: params
     };
