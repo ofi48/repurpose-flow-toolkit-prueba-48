@@ -78,6 +78,8 @@ export const useVideoProcessing = () => {
       setProgress(20);
       
       try {
+        console.log("Sending request to process-video endpoint");
+        
         // Send request to process-video endpoint which forwards to Railway
         const response = await fetch('/process-video', {
           method: 'POST',
@@ -86,18 +88,33 @@ export const useVideoProcessing = () => {
         
         setProgress(80);
         
+        // Log response status and headers for debugging
+        console.log("Response status:", response.status);
+        console.log("Response headers:", Object.fromEntries(response.headers));
+        
         // Check if response is JSON
         const contentType = response.headers.get('content-type');
+        console.log("Response content-type:", contentType);
+        
         if (!contentType || !contentType.includes('application/json')) {
           const textResponse = await response.text();
-          console.error('Non-JSON response received:', textResponse.substring(0, 200) + '...');
-          throw new Error('Server returned an unexpected response format. Please try again later.');
+          console.error('Non-JSON response received (first 500 chars):', textResponse.substring(0, 500));
+          throw new Error(`Server returned an unexpected response format. Content-Type: ${contentType || 'undefined'}`);
         }
         
-        const responseData = await response.json();
+        let responseData;
+        try {
+          responseData = await response.json();
+          console.log("Response data:", JSON.stringify(responseData).substring(0, 200));
+        } catch (jsonError) {
+          console.error('JSON parsing error:', jsonError);
+          throw new Error('Failed to parse server response as JSON. The server might be returning invalid JSON.');
+        }
         
         if (!response.ok) {
-          throw new Error(responseData.error || "Processing failed");
+          const errorMsg = responseData.error || "Processing failed";
+          console.error('Server returned error:', errorMsg);
+          throw new Error(errorMsg);
         }
         
         // Update the progress to 100%

@@ -14,12 +14,12 @@ export default defineConfig(({ mode }) => ({
       "Cross-Origin-Embedder-Policy": "require-corp"
     },
     proxy: {
-      // Proxy API requests to Railway server
-      '/process-video': {
-        target: 'https://video-server-production-d7af.up.railway.app',
-        changeOrigin: true,
-        secure: false,
-      }
+      // Disable the proxy to use Supabase Edge Function instead
+      // '/process-video': {
+      //   target: 'https://video-server-production-d7af.up.railway.app',
+      //   changeOrigin: true,
+      //   secure: false,
+      // }
     }
   },
   plugins: [
