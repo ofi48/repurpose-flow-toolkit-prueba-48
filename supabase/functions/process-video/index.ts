@@ -2,11 +2,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createFFmpeg, fetchFile } from "https://esm.sh/@ffmpeg/ffmpeg@0.11.6";
 
+// CORS headers for all responses
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Type definitions
 interface VideoProcessingRequest {
   videoUrl: string;
   settings: {
@@ -90,29 +92,9 @@ async function uploadProcessedVideo(
   return `${supabaseUrl}/storage/v1/object/public/videos/${fileName}`;
 }
 
-// Function to apply video processing using FFmpeg WASM
-async function processVideo(
-  inputVideo: Uint8Array,
-  processingParams: Record<string, any>,
-  outputFileName: string,
-  supabaseUrl: string,
-  supabaseKey: string
-): Promise<string> {
-  console.log(`Processing video with params: ${JSON.stringify(processingParams)}`);
-  
-  // Initialize FFmpeg
-  const ffmpeg = createFFmpeg({ 
-    log: true,
-    corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
-  });
-  await ffmpeg.load();
-  
-  // Write the input file to memory
-  ffmpeg.FS('writeFile', 'input.mp4', inputVideo);
-  
-  // Build FFmpeg command based on processing parameters
-  let command = ['-i', 'input.mp4'];
-  let filters = [];
+// Function to build FFmpeg filters based on processing parameters
+function buildFFmpegFilters(processingParams: Record<string, any>): string[] {
+  const filters = [];
   
   // Apply speed effect
   if (processingParams.speed && processingParams.speed !== 1) {
@@ -120,13 +102,6 @@ async function processVideo(
     filters.push(`setpts=${speedFactor}*PTS`);
     // Audio tempo needs to match video speed
     filters.push(`atempo=${processingParams.speed}`);
-  }
-  
-  // Apply trim if specified
-  if (processingParams.trimStart || processingParams.trimEnd) {
-    let ssParam = processingParams.trimStart ? `-ss ${processingParams.trimStart}` : '';
-    let toParam = processingParams.trimEnd ? `-to ${processingParams.trimEnd}` : '';
-    command.push(ssParam, toParam);
   }
   
   // Apply color adjustments
@@ -147,6 +122,20 @@ async function processVideo(
     filters.push('hflip');
   }
   
+  return filters;
+}
+
+// Function to build FFmpeg command based on processing parameters
+function buildFFmpegCommand(processingParams: Record<string, any>, filters: string[]): string[] {
+  let command = ['-i', 'input.mp4'];
+  
+  // Apply trim if specified
+  if (processingParams.trimStart || processingParams.trimEnd) {
+    let ssParam = processingParams.trimStart ? `-ss ${processingParams.trimStart}` : '';
+    let toParam = processingParams.trimEnd ? `-to ${processingParams.trimEnd}` : '';
+    command.push(ssParam, toParam);
+  }
+  
   // Add all filters to command if any
   if (filters.length > 0) {
     command.push('-vf', filters.join(','));
@@ -160,6 +149,34 @@ async function processVideo(
   // Output file configuration
   command.push('-c:v', 'libx264', '-preset', 'fast', '-pix_fmt', 'yuv420p');
   command.push('-y', 'output.mp4');
+  
+  return command;
+}
+
+// Function to apply video processing using FFmpeg WASM
+async function processVideo(
+  inputVideo: Uint8Array,
+  processingParams: Record<string, any>,
+  outputFileName: string,
+  supabaseUrl: string,
+  supabaseKey: string
+): Promise<string> {
+  console.log(`Processing video with params: ${JSON.stringify(processingParams)}`);
+  
+  // Initialize FFmpeg
+  const ffmpeg = createFFmpeg({ 
+    log: true,
+    corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+  });
+  
+  await ffmpeg.load();
+  
+  // Write the input file to memory
+  ffmpeg.FS('writeFile', 'input.mp4', inputVideo);
+  
+  // Build FFmpeg filters and command
+  const filters = buildFFmpegFilters(processingParams);
+  const command = buildFFmpegCommand(processingParams, filters);
   
   // Run FFmpeg command
   console.log(`Running FFmpeg command: ffmpeg ${command.join(' ')}`);
@@ -178,12 +195,49 @@ async function processVideo(
   return videoUrl;
 }
 
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+// Function to generate processing parameters based on settings
+function generateProcessingParams(settings: VideoProcessingRequest['settings']): Record<string, any> {
+  const processingParams: Record<string, any> = {};
+  
+  if (settings.speed.enabled) {
+    processingParams.speed = getRandomValue(settings.speed.min, settings.speed.max);
   }
+  
+  if (settings.trimStart.enabled) {
+    processingParams.trimStart = getRandomValue(settings.trimStart.min, settings.trimStart.max);
+  }
+  
+  if (settings.trimEnd.enabled) {
+    processingParams.trimEnd = getRandomValue(settings.trimEnd.min, settings.trimEnd.max);
+  }
+  
+  if (settings.saturation.enabled) {
+    processingParams.saturation = getRandomValue(settings.saturation.min, settings.saturation.max);
+  }
+  
+  if (settings.contrast.enabled) {
+    processingParams.contrast = getRandomValue(settings.contrast.min, settings.contrast.max);
+  }
+  
+  if (settings.brightness.enabled) {
+    processingParams.brightness = getRandomValue(settings.brightness.min, settings.brightness.max);
+  }
+  
+  if (settings.audioBitrate.enabled) {
+    processingParams.audioBitrate = Math.round(
+      getRandomValue(settings.audioBitrate.min, settings.audioBitrate.max)
+    );
+  }
+  
+  if (settings.flipHorizontal) {
+    processingParams.flipHorizontal = settings.flipHorizontal;
+  }
+  
+  return processingParams;
+}
 
+// Main handler function to process the video
+async function handleVideoProcessing(req: Request): Promise<Response> {
   try {
     // Extract apikey from request headers
     const apikey = req.headers.get('apikey') || '';
@@ -215,42 +269,8 @@ serve(async (req) => {
     const originalFilename = videoUrl.split('/').pop()?.split('?')[0] || 'video.mp4';
     
     for (let i = 0; i < numCopies; i++) {
-      // Generate random values within the specified ranges for enabled settings
-      const processingParams: Record<string, any> = {};
-      
-      if (settings.speed.enabled) {
-        processingParams.speed = getRandomValue(settings.speed.min, settings.speed.max);
-      }
-      
-      if (settings.trimStart.enabled) {
-        processingParams.trimStart = getRandomValue(settings.trimStart.min, settings.trimStart.max);
-      }
-      
-      if (settings.trimEnd.enabled) {
-        processingParams.trimEnd = getRandomValue(settings.trimEnd.min, settings.trimEnd.max);
-      }
-      
-      if (settings.saturation.enabled) {
-        processingParams.saturation = getRandomValue(settings.saturation.min, settings.saturation.max);
-      }
-      
-      if (settings.contrast.enabled) {
-        processingParams.contrast = getRandomValue(settings.contrast.min, settings.contrast.max);
-      }
-      
-      if (settings.brightness.enabled) {
-        processingParams.brightness = getRandomValue(settings.brightness.min, settings.brightness.max);
-      }
-      
-      if (settings.audioBitrate.enabled) {
-        processingParams.audioBitrate = Math.round(
-          getRandomValue(settings.audioBitrate.min, settings.audioBitrate.max)
-        );
-      }
-      
-      if (settings.flipHorizontal) {
-        processingParams.flipHorizontal = settings.flipHorizontal;
-      }
+      // Generate random processing parameters based on settings
+      const processingParams = generateProcessingParams(settings);
       
       // Generate output filename
       const outputFileName = generateFileName(originalFilename, i + 1);
@@ -310,4 +330,14 @@ serve(async (req) => {
       }
     );
   }
+}
+
+// Main serve function
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  return handleVideoProcessing(req);
 });
