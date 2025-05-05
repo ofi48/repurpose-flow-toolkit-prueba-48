@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,7 +10,7 @@ import { Check, Download, Play, Save, Video, X } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { VideoPresetSettings } from '@/types/preset';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
-import { supabase, generateFileName, getPublicUrl } from "@/integrations/supabase/client";
+import { supabase, generateFileName, getPublicUrl, uploadFileWithProgress } from "@/integrations/supabase/client";
 
 const VideoRepurposer = () => {
   const [activeTab, setActiveTab] = useState("process");
@@ -103,21 +102,18 @@ const VideoRepurposer = () => {
     setActiveTab("process");
     
     try {
-      // Upload the file to Supabase storage
+      // Upload the file to Supabase storage using our new helper function
       const fileName = generateFileName(file.name);
       
-      const { error: uploadError, data } = await supabase.storage
-        .from('videos')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false,
-          onUploadProgress: (progress) => {
-            setUploadProgress(Math.round((progress.loaded / progress.total) * 100));
-          }
-        });
+      const { path, error } = await uploadFileWithProgress(
+        'videos', 
+        fileName, 
+        file, 
+        (progress) => setUploadProgress(progress)
+      );
         
-      if (uploadError) {
-        throw new Error(uploadError.message);
+      if (error) {
+        throw error;
       }
       
       // Get the public URL for the uploaded file

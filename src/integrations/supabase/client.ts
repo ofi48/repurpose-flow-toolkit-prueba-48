@@ -28,3 +28,53 @@ export const getPublicUrl = (bucketName: string, filePath: string) => {
   const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
   return data.publicUrl;
 };
+
+/**
+ * Helper function to upload a file with progress tracking
+ */
+export const uploadFileWithProgress = async (
+  bucketName: string, 
+  filePath: string, 
+  file: File,
+  onProgress?: (progress: number) => void
+) => {
+  try {
+    let lastProgress = 0;
+    
+    // Using XMLHttpRequest to track upload progress
+    const xhr = new XMLHttpRequest();
+    
+    const uploadPromise = new Promise<{path: string; error: Error | null}>((resolve, reject) => {
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable && onProgress) {
+          const progressPercent = Math.round((event.loaded / event.total) * 100);
+          if (progressPercent !== lastProgress) {
+            lastProgress = progressPercent;
+            onProgress(progressPercent);
+          }
+        }
+      });
+      
+      // Upload the file using Supabase storage
+      supabase.storage
+        .from(bucketName)
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        })
+        .then(({ data, error }) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve({ path: data.path, error: null });
+          }
+        })
+        .catch(reject);
+    });
+    
+    return await uploadPromise;
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    return { path: '', error };
+  }
+};
