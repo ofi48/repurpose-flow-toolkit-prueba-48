@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,22 +11,27 @@ import { Check, Download, Play, Save, Video, X } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { VideoPresetSettings } from '@/types/preset';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { supabase, generateFileName, getPublicUrl } from "@/integrations/supabase/client";
 
 const VideoRepurposer = () => {
   const [activeTab, setActiveTab] = useState("process");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string>("");
   const [numCopies, setNumCopies] = useState(3);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [results, setResults] = useState<{name: string, url: string}[]>([]);
+  const [results, setResults] = useState<{name: string, url: string, processingDetails?: any}[]>([]);
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<{name: string, settings: VideoPresetSettings}[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [currentPreview, setCurrentPreview] = useState("");
+  const [currentPreviewUrl, setCurrentPreviewUrl] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
   const { toast } = useToast();
   
   // Create a ref for the hidden download link
   const downloadLinkRef = useRef<HTMLAnchorElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // Preset settings
   const [settings, setSettings] = useState<VideoPresetSettings>({
@@ -39,59 +45,105 @@ const VideoRepurposer = () => {
     flipHorizontal: false
   });
 
-  // Initialize and clean up download link and blob URLs
+  // Initialize download link
   useEffect(() => {
-    console.log("Component mounted or results changed");
-    
-    // Create a hidden download link if it doesn't exist
     if (!downloadLinkRef.current) {
       const link = document.createElement('a');
       link.style.display = 'none';
       document.body.appendChild(link);
       downloadLinkRef.current = link;
-      console.log("Download link created");
     }
     
     return () => {
-      // Clean up any blob URLs when component unmounts
-      if (results.length > 0) {
-        console.log("Cleaning up blob URLs:", results.length);
-        results.forEach(result => {
-          if (result.url.startsWith('blob:')) {
-            URL.revokeObjectURL(result.url);
-          }
-        });
-      }
-      
-      // Remove the download link
       if (downloadLinkRef.current) {
         document.body.removeChild(downloadLinkRef.current);
-        downloadLinkRef.current = null;
       }
     };
-  }, [results]);
+  }, []);
 
-  const handleFileSelect = (file: File) => {
+  // Create a bucket for videos if it doesn't exist (this would normally be done in a migration)
+  useEffect(() => {
+    const initStorage = async () => {
+      try {
+        // Check if the bucket already exists
+        const { data: buckets } = await supabase.storage.listBuckets();
+        const bucketExists = buckets?.some(bucket => bucket.name === 'videos');
+        
+        if (!bucketExists) {
+          const { error } = await supabase.storage.createBucket('videos', {
+            public: true,
+            fileSizeLimit: 50000000, // 50MB limit
+          });
+          
+          if (error) {
+            console.error('Error creating bucket:', error);
+          } else {
+            console.log('Videos bucket created');
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing storage:', error);
+      }
+    };
+    
+    initStorage();
+  }, []);
+
+  const handleFileSelect = async (file: File) => {
     console.log("File selected:", file.name);
     
-    // Reset progress and processing state when a new file is uploaded
+    // Reset states
     setProgress(0);
     setProcessing(false);
     setUploadedFile(file);
     setResults([]);
+    setUploadProgress(0);
     
-    // Ensure we stay on the process tab after file upload
+    // Ensure we stay on the process tab
     setActiveTab("process");
     
-    toast({
-      title: "File uploaded",
-      description: `${file.name} uploaded successfully.`,
-      variant: "default"
-    });
+    try {
+      // Upload the file to Supabase storage
+      const fileName = generateFileName(file.name);
+      
+      const { error: uploadError, data } = await supabase.storage
+        .from('videos')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+          onUploadProgress: (progress) => {
+            setUploadProgress(Math.round((progress.loaded / progress.total) * 100));
+          }
+        });
+        
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+      
+      // Get the public URL for the uploaded file
+      const publicUrl = getPublicUrl('videos', fileName);
+      setUploadedFileUrl(publicUrl);
+      
+      toast({
+        title: "File uploaded",
+        description: `${file.name} uploaded successfully.`,
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: "Upload failed",
+        description: error.message || "An error occurred while uploading the file.",
+        variant: "destructive"
+      });
+      
+      // Reset the file selection
+      setUploadedFile(null);
+    }
   };
 
-  const handleStartProcess = () => {
-    if (!uploadedFile) {
+  const handleStartProcess = async () => {
+    if (!uploadedFile || !uploadedFileUrl) {
       toast({
         title: "No file selected",
         description: "Please upload a video file to continue.",
@@ -102,66 +154,56 @@ const VideoRepurposer = () => {
 
     console.log("Starting processing:", uploadedFile.name);
     setProcessing(true);
-    
-    // Simulate processing - in a real app, this would call an API
-    let progressValue = 0;
-    const interval = setInterval(() => {
-      progressValue += (100 / (numCopies * 10));
-      
-      if (progressValue >= 100) {
-        clearInterval(interval);
-        finishProcessing();
-        return;
-      }
-      
-      setProgress(progressValue);
-    }, 300);
-  };
-
-  const finishProcessing = () => {
-    console.log("Processing complete");
-    setProcessing(false);
-    setProgress(100);
+    setProgress(0);
     
     try {
-      // Generate mock video blobs for download
-      const mockResults = [];
-      for (let i = 0; i < numCopies; i++) {
-        const fileName = `${uploadedFile?.name?.split('.')[0]}_variant_${i+1}.mp4`;
-        
-        // Create a mock video blob (in real app, this would be actual video data)
-        const mockVideoContent = new Uint8Array([0, 1, 2, 3]); // Minimal binary data to represent a file
-        const blob = new Blob([mockVideoContent], { type: 'video/mp4' });
-        const url = URL.createObjectURL(blob);
-        
-        console.log(`Created blob URL: ${url} for ${fileName}`);
-        
-        mockResults.push({
-          name: fileName,
-          url: url
-        });
+      // Call the process-video edge function to process the video
+      const response = await fetch(`https://wowulglaoykdvfuqkpxd.supabase.co/functions/v1/process-video`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          videoUrl: uploadedFileUrl,
+          settings,
+          numCopies
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Processing failed: ${errorText}`);
       }
       
-      setResults(mockResults);
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || "Processing failed.");
+      }
+      
+      // Update the progress to 100%
+      setProgress(100);
+      
+      // Set the results
+      setResults(data.results);
       
       toast({
         title: "Processing complete",
-        description: `Generated ${numCopies} video variants.`,
+        description: `Generated ${data.results.length} video variants.`,
         variant: "default"
       });
       
-      // Only switch to results tab if we have results
-      if (mockResults.length > 0) {
-        console.log("Switching to results tab");
-        setActiveTab("results");
-      }
+      // Switch to results tab
+      setActiveTab("results");
     } catch (error) {
-      console.error("Error generating results:", error);
+      console.error('Error processing video:', error);
       toast({
-        title: "Error generating results",
-        description: "An error occurred while creating video variants.",
+        title: "Processing failed",
+        description: error.message || "An error occurred while processing the video.",
         variant: "destructive"
       });
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -245,6 +287,7 @@ const VideoRepurposer = () => {
     }
     
     setCurrentPreview(fileName);
+    setCurrentPreviewUrl(fileUrl);
     setShowPreview(true);
     
     console.log(`Previewing ${fileName} from ${fileUrl}`);
@@ -262,7 +305,6 @@ const VideoRepurposer = () => {
     }
     
     try {
-      // Use the actual blob URL that was created
       if (!downloadLinkRef.current) {
         const link = document.createElement('a');
         link.style.display = 'none';
@@ -375,6 +417,19 @@ const VideoRepurposer = () => {
                   label="Upload Video"
                 />
 
+                {uploadProgress > 0 && uploadProgress < 100 && (
+                  <ProgressBar value={uploadProgress} label="Uploading video..." />
+                )}
+
+                {uploadedFile && (
+                  <div className="bg-app-dark-accent p-3 rounded-md">
+                    <p className="text-sm font-medium">Uploaded: {uploadedFile.name}</p>
+                    <p className="text-xs text-gray-400">
+                      Size: {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <Label className="text-sm font-medium">Number of Variants</Label>
                   <Input 
@@ -389,7 +444,7 @@ const VideoRepurposer = () => {
                   <Button 
                     className="w-full" 
                     onClick={handleStartProcess}
-                    disabled={processing || !uploadedFile}
+                    disabled={processing || !uploadedFile || !uploadedFileUrl}
                     size="lg"
                   >
                     {processing ? 'Processing...' : 'Start Processing'}
@@ -564,8 +619,14 @@ const VideoRepurposer = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {results.map((result, index) => (
                 <div key={index} className="bg-app-dark-accent border border-gray-700 rounded-lg overflow-hidden">
-                  <div className="aspect-video bg-black flex items-center justify-center">
+                  <div className="aspect-video bg-black flex items-center justify-center relative">
                     <Video className="h-12 w-12 text-gray-600" />
+                    {result.processingDetails && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-xs p-1 text-white">
+                        <p>Speed: {result.processingDetails.speed.toFixed(2)}x</p>
+                        <p>Contrast: {result.processingDetails.contrast.toFixed(2)}</p>
+                      </div>
+                    )}
                   </div>
                   <div className="p-3">
                     <p className="font-medium truncate">{result.name}</p>
@@ -618,16 +679,35 @@ const VideoRepurposer = () => {
             <DialogClose />
           </DialogHeader>
           
-          <div className="aspect-video bg-black rounded-md flex items-center justify-center">
-            {/* In a real app, you would render a video player here */}
-            <div className="text-center p-8">
-              <Video className="h-16 w-16 mx-auto text-gray-600 mb-4" />
-              <p className="text-gray-300">{currentPreview}</p>
-              <p className="text-gray-400 mt-2 text-sm">
-                (This is a simulated preview. In a real app, a video player would be shown here)
-              </p>
-            </div>
+          <div className="aspect-video bg-black rounded-md overflow-hidden">
+            {currentPreviewUrl ? (
+              <video 
+                ref={videoRef}
+                controls
+                className="w-full h-full"
+                src={currentPreviewUrl}
+                onError={() => {
+                  toast({
+                    title: "Video Error",
+                    description: "Could not load the video. The file may be corrupted or not supported.",
+                    variant: "destructive"
+                  });
+                }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-gray-400">No preview available</p>
+              </div>
+            )}
           </div>
+          
+          {currentPreview && (
+            <div className="mt-2 text-center">
+              <p className="text-sm font-medium">{currentPreview}</p>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
