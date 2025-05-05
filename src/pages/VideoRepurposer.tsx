@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +11,13 @@ import { useToast } from "@/hooks/use-toast";
 import { VideoPresetSettings } from '@/types/preset';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { supabase, generateFileName, getPublicUrl, uploadFileWithProgress, SUPABASE_ANON_KEY } from "@/integrations/supabase/client";
+import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
+
+// Initialize FFmpeg
+const ffmpeg = createFFmpeg({ 
+  log: true,
+  corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+});
 
 const VideoRepurposer = () => {
   const [activeTab, setActiveTab] = useState("process");
@@ -27,6 +33,7 @@ const VideoRepurposer = () => {
   const [currentPreview, setCurrentPreview] = useState("");
   const [currentPreviewUrl, setCurrentPreviewUrl] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
   const { toast } = useToast();
   
   // Create a ref for the hidden download link
@@ -44,6 +51,28 @@ const VideoRepurposer = () => {
     audioBitrate: { min: 96, max: 128, enabled: false },
     flipHorizontal: false
   });
+
+  // Load FFmpeg on component mount
+  useEffect(() => {
+    const loadFFmpeg = async () => {
+      try {
+        if (!ffmpeg.isLoaded()) {
+          await ffmpeg.load();
+          console.log('FFmpeg loaded successfully');
+          setFfmpegLoaded(true);
+        }
+      } catch (error) {
+        console.error('Error loading FFmpeg:', error);
+        toast({
+          title: "FFmpeg error",
+          description: "Could not initialize video processing library. Please try again.",
+          variant: "destructive"
+        });
+      }
+    };
+    
+    loadFFmpeg();
+  }, []);
 
   // Initialize download link
   useEffect(() => {
@@ -139,11 +168,129 @@ const VideoRepurposer = () => {
     }
   };
 
+  // Generate a random number between min and max
+  const getRandomValue = (min: number, max: number) => {
+    return min + Math.random() * (max - min);
+  };
+
+  // Get values for processing parameters based on settings
+  const generateProcessingParameters = () => {
+    const params = {
+      speed: settings.speed.enabled ? getRandomValue(settings.speed.min, settings.speed.max) : 1,
+      trimStart: settings.trimStart.enabled ? getRandomValue(settings.trimStart.min, settings.trimStart.max) : 0,
+      trimEnd: settings.trimEnd.enabled ? getRandomValue(settings.trimEnd.min, settings.trimEnd.max) : 0,
+      saturation: settings.saturation.enabled ? getRandomValue(settings.saturation.min, settings.saturation.max) : 1,
+      contrast: settings.contrast.enabled ? getRandomValue(settings.contrast.min, settings.contrast.max) : 1,
+      brightness: settings.brightness.enabled ? getRandomValue(settings.brightness.min, settings.brightness.max) : 1,
+      audioBitrate: settings.audioBitrate.enabled ? Math.round(getRandomValue(settings.audioBitrate.min, settings.audioBitrate.max)) : 128,
+      flipHorizontal: settings.flipHorizontal
+    };
+    
+    return params;
+  };
+
+  // Build FFmpeg complex filter for a video variant
+  const buildComplexFilter = (params) => {
+    let filter = '';
+    
+    // Add saturation filter if enabled
+    if (settings.saturation.enabled) {
+      filter += `eq=saturation=${params.saturation}:`;
+    }
+    
+    // Add contrast filter if enabled
+    if (settings.contrast.enabled) {
+      filter += `contrast=${params.contrast}:`;
+    }
+    
+    // Add brightness filter if enabled
+    if (settings.brightness.enabled) {
+      filter += `brightness=${params.brightness}`;
+    }
+    
+    // Remove trailing colon if present
+    if (filter.endsWith(':')) {
+      filter = filter.slice(0, -1);
+    }
+    
+    // Add flip filter if enabled
+    if (params.flipHorizontal) {
+      filter = filter ? `${filter},hflip` : 'hflip';
+    }
+    
+    return filter;
+  };
+
+  // Process video with FFmpeg
+  const processVideoWithFFmpeg = async (inputFileName: string, outputFileName: string, params) => {
+    try {
+      // Write the input file to FFmpeg's virtual file system
+      ffmpeg.FS('writeFile', inputFileName, await fetchFile(uploadedFile));
+      
+      // Build the FFmpeg command
+      const filterComplex = buildComplexFilter(params);
+      const command = ['-i', inputFileName];
+      
+      // Add trim parameters if enabled
+      if (settings.trimStart.enabled && params.trimStart > 0) {
+        command.push('-ss', `${params.trimStart}`);
+      }
+      
+      // Add speed/tempo adjustment if enabled
+      if (settings.speed.enabled && params.speed !== 1) {
+        command.push('-filter:a', `atempo=${params.speed}`, '-filter:v', `setpts=1/${params.speed}*PTS`);
+      }
+      
+      // Add video filters if any
+      if (filterComplex) {
+        command.push('-vf', filterComplex);
+      }
+      
+      // Add audio bitrate if enabled
+      if (settings.audioBitrate.enabled) {
+        command.push('-b:a', `${params.audioBitrate}k`);
+      }
+      
+      // Add output file name and format
+      command.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '22', outputFileName);
+      
+      console.log('FFmpeg command:', command);
+      
+      // Execute the command
+      await ffmpeg.run(...command);
+      
+      // Read the result
+      const data = ffmpeg.FS('readFile', outputFileName);
+      
+      // Create a URL for the processed video
+      const blob = new Blob([data.buffer], { type: 'video/mp4' });
+      
+      return {
+        blob,
+        url: URL.createObjectURL(blob),
+        name: outputFileName,
+        processingDetails: params
+      };
+    } catch (error) {
+      console.error('Error processing video with FFmpeg:', error);
+      throw error;
+    }
+  };
+
   const handleStartProcess = async () => {
-    if (!uploadedFile || !uploadedFileUrl) {
+    if (!uploadedFile) {
       toast({
         title: "No file selected",
         description: "Please upload a video file to continue.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!ffmpegLoaded) {
+      toast({
+        title: "FFmpeg not ready",
+        description: "Video processing library is still loading. Please wait a moment and try again.",
         variant: "destructive"
       });
       return;
@@ -155,62 +302,49 @@ const VideoRepurposer = () => {
     setResults([]);
     
     try {
-      // Simulating progress updates
-      const progressInterval = setInterval(() => {
-        setProgress(prev => {
-          const newProgress = prev + 5;
-          if (newProgress >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return newProgress;
+      const inputFileName = 'input.mp4';
+      const totalVariants = numCopies;
+      const processedVideos = [];
+      
+      for (let i = 0; i < totalVariants; i++) {
+        // Update progress
+        setProgress(Math.round((i / totalVariants) * 100));
+        
+        // Generate random parameters for this variant
+        const params = generateProcessingParameters();
+        const outputFileName = `output_${i}.mp4`;
+        
+        // Process the video
+        const result = await processVideoWithFFmpeg(inputFileName, outputFileName, params);
+        
+        // Add to results
+        processedVideos.push({
+          name: `variant_${i + 1}.mp4`,
+          url: result.url,
+          processingDetails: params
         });
-      }, 300);
-      
-      // Get the authentication token if available
-      let authToken = null;
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData?.session) {
-        authToken = sessionData.session.access_token;
-      }
-      
-      // Call the process-video edge function to process the video
-      const response = await fetch(`https://wowulglaoykdvfuqkpxd.supabase.co/functions/v1/process-video`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': authToken ? `Bearer ${authToken}` : '',
-          'apikey': SUPABASE_ANON_KEY
-        },
-        body: JSON.stringify({
-          videoUrl: uploadedFileUrl,
-          settings,
-          numCopies
-        })
-      });
-      
-      clearInterval(progressInterval);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Processing failed: ${errorText}`);
-      }
-      
-      const responseData = await response.json();
-      
-      if (!responseData.success) {
-        throw new Error(responseData.error || "Processing failed.");
+        
+        // Upload to Supabase storage if needed
+        if (uploadedFileUrl) {
+          const fileName = generateFileName(`variant_${i + 1}.mp4`);
+          await uploadFileWithProgress(
+            'videos', 
+            fileName, 
+            new File([result.blob], fileName, { type: 'video/mp4' }),
+            (progress) => console.log(`Uploading variant ${i + 1}: ${progress}%`)
+          );
+        }
       }
       
       // Update the progress to 100%
       setProgress(100);
       
       // Set the results
-      setResults(responseData.results);
+      setResults(processedVideos);
       
       toast({
         title: "Processing complete",
-        description: `Generated ${responseData.results.length} video variants.`,
+        description: `Generated ${processedVideos.length} video variants.`,
         variant: "default"
       });
       
@@ -411,6 +545,13 @@ const VideoRepurposer = () => {
           </p>
         </div>
       </div>
+
+      {!ffmpegLoaded && (
+        <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-600/20 rounded-md">
+          <p className="text-yellow-500">Loading video processing library... This may take a moment.</p>
+          <ProgressBar value={50} label="Loading FFmpeg..." />
+        </div>
+      )}
 
       <Tabs 
         value={activeTab} 
