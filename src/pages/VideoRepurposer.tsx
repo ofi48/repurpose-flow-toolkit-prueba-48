@@ -151,8 +151,21 @@ const VideoRepurposer = () => {
     console.log("Starting processing:", uploadedFile.name);
     setProcessing(true);
     setProgress(0);
+    setResults([]);
     
     try {
+      // Simulating progress updates
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          const newProgress = prev + 5;
+          if (newProgress >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return newProgress;
+        });
+      }, 300);
+      
       // Call the process-video edge function to process the video
       const response = await fetch(`https://wowulglaoykdvfuqkpxd.supabase.co/functions/v1/process-video`, {
         method: 'POST',
@@ -165,6 +178,8 @@ const VideoRepurposer = () => {
           numCopies
         })
       });
+      
+      clearInterval(progressInterval);
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -616,13 +631,27 @@ const VideoRepurposer = () => {
               {results.map((result, index) => (
                 <div key={index} className="bg-app-dark-accent border border-gray-700 rounded-lg overflow-hidden">
                   <div className="aspect-video bg-black flex items-center justify-center relative">
-                    <Video className="h-12 w-12 text-gray-600" />
-                    {result.processingDetails && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-xs p-1 text-white">
-                        <p>Speed: {result.processingDetails.speed.toFixed(2)}x</p>
-                        <p>Contrast: {result.processingDetails.contrast.toFixed(2)}</p>
-                      </div>
-                    )}
+                    <Video className="h-12 w-12 text-gray-600 absolute" />
+                    <div className="absolute inset-0 bg-black opacity-50"></div>
+                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-xs p-2 text-white space-y-1">
+                      {result.processingDetails && (
+                        <>
+                          <p>Speed: {result.processingDetails.speed.toFixed(2)}x</p>
+                          {result.processingDetails.saturation && (
+                            <p>Saturation: {result.processingDetails.saturation.toFixed(2)}</p>
+                          )}
+                          {result.processingDetails.contrast && (
+                            <p>Contrast: {result.processingDetails.contrast.toFixed(2)}</p>
+                          )}
+                          {result.processingDetails.brightness && (
+                            <p>Brightness: {result.processingDetails.brightness.toFixed(2)}</p>
+                          )}
+                          {result.processingDetails.flipHorizontal && (
+                            <p>Flipped: {result.processingDetails.flipHorizontal ? 'Yes' : 'No'}</p>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="p-3">
                     <p className="font-medium truncate">{result.name}</p>
