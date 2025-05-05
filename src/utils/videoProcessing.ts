@@ -1,4 +1,3 @@
-
 import { VideoPresetSettings } from '@/types/preset';
 
 // Generate a random number between min and max
@@ -22,7 +21,7 @@ export const generateProcessingParameters = (settings: VideoPresetSettings) => {
   return params;
 };
 
-// Build filter string for video processing (for API reference, not used locally)
+// Build filter string for video processing (for API reference)
 export const buildComplexFilter = (params, settings: VideoPresetSettings) => {
   let filter = '';
   
@@ -54,26 +53,41 @@ export const buildComplexFilter = (params, settings: VideoPresetSettings) => {
   return filter;
 };
 
-// Server-side processing function
+// Server-side processing function that connects to Railway
 export const processVideoOnServer = async (file: File, params: any) => {
-  console.log('Sending video to server for processing:', { params });
+  console.log('Sending video to Railway server for processing:', { params });
   
   try {
-    // Create a mock implementation that simulates server processing
-    // In a real implementation, you would upload the file to your server
-    // and get back processed files
+    // Create form data to send to Railway
+    const formData = new FormData();
+    formData.append('video', file);
+    formData.append('params', JSON.stringify(params));
     
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Set Railway server URL - replace with your actual Railway URL
+    // Using the port 8080 you mentioned for local development
+    const railwayServerUrl = 'http://localhost:8080/process-video';
     
-    // Return a mock result
+    // Send request to Railway server
+    const response = await fetch(railwayServerUrl, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error processing video on Railway server');
+    }
+    
+    const data = await response.json();
+    
+    // Return processed video data
     return {
-      url: URL.createObjectURL(file),
-      name: `processed_${file.name}`,
+      url: data.url || URL.createObjectURL(file), // Use returned URL or fallback to original
+      name: data.name || `processed_${file.name}`,
       processingDetails: params
     };
   } catch (error) {
-    console.error('Error processing video:', error);
+    console.error('Error processing video on Railway server:', error);
     throw error;
   }
 };

@@ -12,7 +12,7 @@ export const useVideoProcessing = () => {
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<{name: string, url: string, processingDetails?: any}[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
-  // We consider FFmpeg always loaded since we're no longer using it directly
+  // We consider FFmpeg always loaded since we're now using Railway
   const ffmpegLoaded = true;
   const { toast } = useToast();
 
@@ -28,6 +28,7 @@ export const useVideoProcessing = () => {
     
     try {
       // Set the uploaded file details
+      setUploadedFile(file);
       setUploadedFileUrl(URL.createObjectURL(file));
       
       toast({
@@ -61,32 +62,31 @@ export const useVideoProcessing = () => {
       return;
     }
 
-    console.log("Starting processing:", uploadedFile.name);
+    console.log("Starting processing with Railway:", uploadedFile.name);
     setProcessing(true);
     setProgress(0);
     setResults([]);
     
     try {
-      // Simulate video processing since we removed FFmpeg
-      // In a real app, you would send the video to a server for processing
-      const totalVariants = numCopies;
+      // Process videos using Railway server
       const processedVideos = [];
+      const totalVariants = numCopies;
       
       for (let i = 0; i < totalVariants; i++) {
         // Update progress
         setProgress(Math.round((i / totalVariants) * 100));
         
-        // Generate random parameters for this variant
+        // Generate parameters for this variant
         const params = generateProcessingParameters(settings);
         
-        // In a real implementation, you would send the video and parameters to a server
-        // and get back a processed video URL
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing time
-        
-        // Process video on server (currently just a mock)
+        // Process video using Railway server
         const processedVideo = await processVideoOnServer(uploadedFile, params);
-        
         processedVideos.push(processedVideo);
+        
+        // Small delay between requests to avoid overwhelming the server
+        if (i < totalVariants - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
       }
       
       // Update the progress to 100%
@@ -103,7 +103,7 @@ export const useVideoProcessing = () => {
       
       return processedVideos;
     } catch (error) {
-      console.error('Error processing video:', error);
+      console.error('Error processing video with Railway:', error);
       toast({
         title: "Processing failed",
         description: error.message || "An error occurred while processing the video.",
@@ -122,7 +122,7 @@ export const useVideoProcessing = () => {
     progress,
     results,
     uploadProgress,
-    ffmpegLoaded, // Keep this to maintain interface compatibility with components that use it
+    ffmpegLoaded,
     handleFileSelect,
     processVideo,
     setResults
