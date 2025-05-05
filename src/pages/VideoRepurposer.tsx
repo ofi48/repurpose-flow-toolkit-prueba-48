@@ -39,31 +39,41 @@ const VideoRepurposer = () => {
     flipHorizontal: false
   });
 
+  // Initialize and clean up download link and blob URLs
   useEffect(() => {
+    console.log("Component mounted or results changed");
+    
     // Create a hidden download link if it doesn't exist
     if (!downloadLinkRef.current) {
       const link = document.createElement('a');
       link.style.display = 'none';
       document.body.appendChild(link);
       downloadLinkRef.current = link;
+      console.log("Download link created");
     }
     
     return () => {
       // Clean up any blob URLs when component unmounts
-      results.forEach(result => {
-        if (result.url.startsWith('blob:')) {
-          URL.revokeObjectURL(result.url);
-        }
-      });
+      if (results.length > 0) {
+        console.log("Cleaning up blob URLs:", results.length);
+        results.forEach(result => {
+          if (result.url.startsWith('blob:')) {
+            URL.revokeObjectURL(result.url);
+          }
+        });
+      }
       
       // Remove the download link
       if (downloadLinkRef.current) {
         document.body.removeChild(downloadLinkRef.current);
+        downloadLinkRef.current = null;
       }
     };
   }, [results]);
 
   const handleFileSelect = (file: File) => {
+    console.log("File selected:", file.name);
+    
     // Reset progress and processing state when a new file is uploaded
     setProgress(0);
     setProcessing(false);
@@ -90,45 +100,69 @@ const VideoRepurposer = () => {
       return;
     }
 
+    console.log("Starting processing:", uploadedFile.name);
     setProcessing(true);
     
     // Simulate processing - in a real app, this would call an API
+    let progressValue = 0;
     const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setProcessing(false);
-          
-          // Generate mock video blobs for download
-          const mockResults = [];
-          for (let i = 0; i < numCopies; i++) {
-            const fileName = `${uploadedFile.name.split('.')[0]}_variant_${i+1}.mp4`;
-            
-            // Create a mock video blob (in real app, this would be actual video data)
-            const mockVideoContent = new Uint8Array([0, 1, 2, 3]); // Minimal binary data to represent a file
-            const blob = new Blob([mockVideoContent], { type: 'video/mp4' });
-            const url = URL.createObjectURL(blob);
-            
-            mockResults.push({
-              name: fileName,
-              url: url
-            });
-          }
-          
-          setResults(mockResults);
-          
-          toast({
-            title: "Processing complete",
-            description: `Generated ${numCopies} video variants.`,
-            variant: "default"
-          });
-          
-          setActiveTab("results");
-          return 100;
-        }
-        return prev + (100 / (numCopies * 10));
-      });
+      progressValue += (100 / (numCopies * 10));
+      
+      if (progressValue >= 100) {
+        clearInterval(interval);
+        finishProcessing();
+        return;
+      }
+      
+      setProgress(progressValue);
     }, 300);
+  };
+
+  const finishProcessing = () => {
+    console.log("Processing complete");
+    setProcessing(false);
+    setProgress(100);
+    
+    try {
+      // Generate mock video blobs for download
+      const mockResults = [];
+      for (let i = 0; i < numCopies; i++) {
+        const fileName = `${uploadedFile?.name?.split('.')[0]}_variant_${i+1}.mp4`;
+        
+        // Create a mock video blob (in real app, this would be actual video data)
+        const mockVideoContent = new Uint8Array([0, 1, 2, 3]); // Minimal binary data to represent a file
+        const blob = new Blob([mockVideoContent], { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+        
+        console.log(`Created blob URL: ${url} for ${fileName}`);
+        
+        mockResults.push({
+          name: fileName,
+          url: url
+        });
+      }
+      
+      setResults(mockResults);
+      
+      toast({
+        title: "Processing complete",
+        description: `Generated ${numCopies} video variants.`,
+        variant: "default"
+      });
+      
+      // Only switch to results tab if we have results
+      if (mockResults.length > 0) {
+        console.log("Switching to results tab");
+        setActiveTab("results");
+      }
+    } catch (error) {
+      console.error("Error generating results:", error);
+      toast({
+        title: "Error generating results",
+        description: "An error occurred while creating video variants.",
+        variant: "destructive"
+      });
+    }
   };
 
   const savePreset = () => {
@@ -200,6 +234,16 @@ const VideoRepurposer = () => {
   };
 
   const handlePreview = (fileName: string, fileUrl: string) => {
+    console.log(`Preview requested: ${fileName} from ${fileUrl}`);
+    if (!fileUrl) {
+      toast({
+        title: "Preview error",
+        description: "No file URL available to preview.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setCurrentPreview(fileName);
     setShowPreview(true);
     
@@ -207,6 +251,7 @@ const VideoRepurposer = () => {
   };
 
   const handleDownload = (fileName: string, fileUrl: string) => {
+    console.log(`Download requested: ${fileName} from ${fileUrl}`);
     if (!fileUrl) {
       toast({
         title: "Download error",
@@ -230,6 +275,8 @@ const VideoRepurposer = () => {
       downloadLinkRef.current.download = fileName;
       downloadLinkRef.current.click();
       
+      console.log(`Download initiated: ${fileName}`);
+      
       toast({
         title: "Download started",
         description: `Downloading ${fileName}`,
@@ -246,6 +293,7 @@ const VideoRepurposer = () => {
   };
 
   const handleDownloadAll = () => {
+    console.log(`Download all requested, ${results.length} files`);
     if (results.length === 0) {
       toast({
         title: "No results available",
@@ -301,7 +349,14 @@ const VideoRepurposer = () => {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs 
+        value={activeTab} 
+        onValueChange={(value) => {
+          console.log(`Tab changed to: ${value}`);
+          setActiveTab(value);
+        }} 
+        className="w-full"
+      >
         <TabsList className="grid grid-cols-3 mb-8">
           <TabsTrigger value="process">Process Video</TabsTrigger>
           <TabsTrigger value="presets">Manage Presets</TabsTrigger>
@@ -501,49 +556,57 @@ const VideoRepurposer = () => {
         <TabsContent value="results" className="space-y-6">
           <h2 className="text-xl font-semibold">Generated Videos</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {results.map((result, index) => (
-              <div key={index} className="bg-app-dark-accent border border-gray-700 rounded-lg overflow-hidden">
-                <div className="aspect-video bg-black flex items-center justify-center">
-                  <Video className="h-12 w-12 text-gray-600" />
-                </div>
-                <div className="p-3">
-                  <p className="font-medium truncate">{result.name}</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1 mr-2"
-                      onClick={() => handlePreview(result.name, result.url)}
-                    >
-                      <Play className="h-4 w-4 mr-1" />
-                      Preview
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      className="flex-1"
-                      onClick={() => handleDownload(result.name, result.url)}
-                    >
-                      <Download className="h-4 w-4 mr-1" />
-                      Download
-                    </Button>
+          {results.length === 0 ? (
+            <div className="bg-app-dark-accent border border-gray-700 rounded-md p-4 text-center">
+              <p className="text-gray-400">No results yet. Process a video to generate results.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {results.map((result, index) => (
+                <div key={index} className="bg-app-dark-accent border border-gray-700 rounded-lg overflow-hidden">
+                  <div className="aspect-video bg-black flex items-center justify-center">
+                    <Video className="h-12 w-12 text-gray-600" />
+                  </div>
+                  <div className="p-3">
+                    <p className="font-medium truncate">{result.name}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1 mr-2"
+                        onClick={() => handlePreview(result.name, result.url)}
+                      >
+                        <Play className="h-4 w-4 mr-1" />
+                        Preview
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => handleDownload(result.name, result.url)}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Download
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="flex justify-between items-center border-t border-gray-800 pt-4 mt-6">
-            <div>
-              <p className="text-sm text-gray-400">
-                Generated {results.length} video variants
-              </p>
+              ))}
             </div>
-            <Button onClick={handleDownloadAll}>
-              <Download className="mr-2 h-4 w-4" />
-              Download All
-            </Button>
-          </div>
+          )}
+          
+          {results.length > 0 && (
+            <div className="flex justify-between items-center border-t border-gray-800 pt-4 mt-6">
+              <div>
+                <p className="text-sm text-gray-400">
+                  Generated {results.length} video variants
+                </p>
+              </div>
+              <Button onClick={handleDownloadAll}>
+                <Download className="mr-2 h-4 w-4" />
+                Download All
+              </Button>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
       
