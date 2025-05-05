@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -11,15 +10,6 @@ import ProcessTab from '@/components/video/ProcessTab';
 import PresetManager from '@/components/video/PresetManager';
 import ResultsTab from '@/components/video/ResultsTab';
 import VideoPreview from '@/components/video/VideoPreview';
-
-// Import FFmpeg
-import { createFFmpeg } from '@ffmpeg/ffmpeg';
-
-// Initialize FFmpeg
-const ffmpeg = createFFmpeg({ 
-  log: true,
-  corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-});
 
 const VideoRepurposer = () => {
   const [activeTab, setActiveTab] = useState("process");

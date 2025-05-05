@@ -19,6 +19,8 @@ export const useFFmpeg = () => {
           await ffmpeg.load();
           console.log('FFmpeg loaded successfully');
           setFfmpegLoaded(true);
+        } else {
+          setFfmpegLoaded(true);
         }
       } catch (error) {
         console.error('Error loading FFmpeg:', error);
