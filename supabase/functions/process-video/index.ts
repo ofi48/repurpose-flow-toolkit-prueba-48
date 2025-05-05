@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createFFmpeg, fetchFile } from "https://esm.sh/@ffmpeg/ffmpeg@0.11.6";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,22 +50,129 @@ function generateFileName(originalName: string, variant: number): string {
   return `${baseName}_variant_${variant}_${timestamp}.${extension}`;
 }
 
-// Function to apply video processing using fetch to call an external API
-async function processVideo(
-  videoUrl: string, 
-  processingParams: Record<string, any>, 
-  outputFileName: string
+// Function to download a video file from URL
+async function downloadVideo(url: string): Promise<Uint8Array> {
+  console.log(`Downloading video from: ${url}`);
+  const response = await fetch(url);
+  const arrayBuffer = await response.arrayBuffer();
+  return new Uint8Array(arrayBuffer);
+}
+
+// Function to upload a processed video back to Supabase Storage
+async function uploadProcessedVideo(
+  videoData: Uint8Array, 
+  fileName: string,
+  supabaseUrl: string,
+  supabaseKey: string
 ): Promise<string> {
-  // For real implementation, we would use FFmpeg to process the video here
-  // Since we can't run FFmpeg directly in this example, we'll use the original video
-  // In a production environment, this would call a dedicated video processing service
+  console.log(`Uploading processed video: ${fileName}`);
   
-  // Simulate processing time
-  await new Promise(resolve => setTimeout(resolve, 500));
+  const formData = new FormData();
+  const blob = new Blob([videoData], { type: 'video/mp4' });
+  formData.append('file', blob, fileName);
   
-  // In a real implementation, we would upload the processed video to Supabase storage
-  // For now, return the original video URL as if it's been processed
-  console.log(`Processed video with params: ${JSON.stringify(processingParams)}`);
+  const uploadUrl = `${supabaseUrl}/storage/v1/object/videos/${fileName}`;
+  
+  const uploadResponse = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      'apikey': supabaseKey,
+    },
+    body: formData
+  });
+  
+  if (!uploadResponse.ok) {
+    console.error(`Upload failed: ${await uploadResponse.text()}`);
+    throw new Error('Failed to upload processed video');
+  }
+  
+  return `${supabaseUrl}/storage/v1/object/public/videos/${fileName}`;
+}
+
+// Function to apply video processing using FFmpeg WASM
+async function processVideo(
+  inputVideo: Uint8Array,
+  processingParams: Record<string, any>,
+  outputFileName: string,
+  supabaseUrl: string,
+  supabaseKey: string
+): Promise<string> {
+  console.log(`Processing video with params: ${JSON.stringify(processingParams)}`);
+  
+  // Initialize FFmpeg
+  const ffmpeg = createFFmpeg({ 
+    log: true,
+    corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+  });
+  await ffmpeg.load();
+  
+  // Write the input file to memory
+  ffmpeg.FS('writeFile', 'input.mp4', inputVideo);
+  
+  // Build FFmpeg command based on processing parameters
+  let command = ['-i', 'input.mp4'];
+  let filters = [];
+  
+  // Apply speed effect
+  if (processingParams.speed && processingParams.speed !== 1) {
+    const speedFactor = 1 / processingParams.speed;
+    filters.push(`setpts=${speedFactor}*PTS`);
+    // Audio tempo needs to match video speed
+    filters.push(`atempo=${processingParams.speed}`);
+  }
+  
+  // Apply trim if specified
+  if (processingParams.trimStart || processingParams.trimEnd) {
+    let ssParam = processingParams.trimStart ? `-ss ${processingParams.trimStart}` : '';
+    let toParam = processingParams.trimEnd ? `-to ${processingParams.trimEnd}` : '';
+    command.push(ssParam, toParam);
+  }
+  
+  // Apply color adjustments
+  if (processingParams.saturation && processingParams.saturation !== 1) {
+    filters.push(`eq=saturation=${processingParams.saturation}`);
+  }
+  
+  if (processingParams.contrast && processingParams.contrast !== 1) {
+    filters.push(`eq=contrast=${processingParams.contrast}`);
+  }
+  
+  if (processingParams.brightness && processingParams.brightness !== 1) {
+    filters.push(`eq=brightness=${processingParams.brightness - 1}`); // FFmpeg uses -1 to 1 range for brightness
+  }
+  
+  // Apply horizontal flip
+  if (processingParams.flipHorizontal) {
+    filters.push('hflip');
+  }
+  
+  // Add all filters to command if any
+  if (filters.length > 0) {
+    command.push('-vf', filters.join(','));
+  }
+  
+  // Set audio bitrate if specified
+  if (processingParams.audioBitrate) {
+    command.push('-ab', `${processingParams.audioBitrate}k`);
+  }
+  
+  // Output file configuration
+  command.push('-c:v', 'libx264', '-preset', 'fast', '-pix_fmt', 'yuv420p');
+  command.push('-y', 'output.mp4');
+  
+  // Run FFmpeg command
+  console.log(`Running FFmpeg command: ffmpeg ${command.join(' ')}`);
+  await ffmpeg.run(...command);
+  
+  // Read the processed file from memory
+  const data = ffmpeg.FS('readFile', 'output.mp4');
+  
+  // Upload to Supabase Storage
+  const videoUrl = await uploadProcessedVideo(data, outputFileName, supabaseUrl, supabaseKey);
+  
+  // Clean up
+  ffmpeg.FS('unlink', 'input.mp4');
+  ffmpeg.FS('unlink', 'output.mp4');
   
   return videoUrl;
 }
@@ -78,10 +186,24 @@ serve(async (req) => {
   try {
     const { videoUrl, settings, numCopies } = await req.json() as VideoProcessingRequest;
     
+    // Extract Supabase URL and key from authorization header for storage operations
+    const authorization = req.headers.get('Authorization') || '';
+    const apikey = req.headers.get('apikey') || '';
+    
+    const supabaseUrl = new URL(videoUrl).origin;
+    const supabaseKey = apikey || authorization.replace('Bearer ', '');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase credentials for storage operations');
+    }
+    
     console.log(`Processing video: ${videoUrl}`);
     console.log(`Settings: ${JSON.stringify(settings)}`);
     console.log(`Number of copies: ${numCopies}`);
 
+    // Download the original video once
+    const videoData = await downloadVideo(videoUrl);
+    
     // Process video to create variations
     const results: ProcessingResult[] = [];
     const originalFilename = videoUrl.split('/').pop()?.split('?')[0] || 'video.mp4';
@@ -127,8 +249,14 @@ serve(async (req) => {
       // Generate output filename
       const outputFileName = generateFileName(originalFilename, i + 1);
       
-      // Apply processing (in real implementation, this would use FFmpeg)
-      const processedVideoUrl = await processVideo(videoUrl, processingParams, outputFileName);
+      // Apply processing with FFmpeg
+      const processedVideoUrl = await processVideo(
+        videoData, 
+        processingParams, 
+        outputFileName,
+        supabaseUrl,
+        supabaseKey
+      );
       
       // Add to results
       results.push({
