@@ -20,14 +20,14 @@ async function handleVideoProcessing(req: Request): Promise<Response> {
     // Get the request body
     const formData = await req.formData();
     
-    // Forward the request to Railway - Use the direct URL with specific endpoint
+    // Forward the request to Railway - Make sure we use the exact correct endpoint URL
     const railwayUrl = "https://video-server-production-d7af.up.railway.app/process-video";
     
     // Log request details for debugging
     console.log("Forwarding request to Railway:", railwayUrl);
     console.log("FormData keys:", [...formData.keys()]);
     
-    // Send the request to Railway with proper headers
+    // Send the request to Railway with proper headers - explicitly set Accept header
     const railwayResponse = await fetch(railwayUrl, {
       method: 'POST',
       body: formData,

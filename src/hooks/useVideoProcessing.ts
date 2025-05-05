@@ -80,8 +80,8 @@ export const useVideoProcessing = () => {
       try {
         console.log("Sending request to process-video endpoint");
         
-        // Send request to process-video endpoint which forwards to Railway
-        const response = await fetch('/process-video', {
+        // Send request to the correct Railway URL with the process-video endpoint
+        const response = await fetch('https://video-server-production-d7af.up.railway.app/process-video', {
           method: 'POST',
           body: formData,
           headers: {
