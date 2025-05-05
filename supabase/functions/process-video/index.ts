@@ -23,12 +23,37 @@ async function handleVideoProcessing(req: Request): Promise<Response> {
     // Forward the request to Railway
     const railwayUrl = "https://video-server-production-d7af.up.railway.app";
     
+    // Log request details for debugging
+    console.log("Forwarding request to Railway:", `${railwayUrl}/process-video`);
+    
     const railwayResponse = await fetch(`${railwayUrl}/process-video`, {
       method: 'POST',
       body: formData,
     });
     
-    // Get the response from Railway
+    // Check if the response is JSON
+    const contentType = railwayResponse.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      // If not JSON, get text for better error message
+      const textResponse = await railwayResponse.text();
+      console.error('Non-JSON response from Railway:', textResponse.substring(0, 200) + '...');
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Unexpected response from video processing server. Please try again later.' 
+        }),
+        { 
+          status: 500,
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          } 
+        }
+      );
+    }
+    
+    // Get the JSON response from Railway
     const railwayData = await railwayResponse.json();
     
     return new Response(
@@ -47,7 +72,7 @@ async function handleVideoProcessing(req: Request): Promise<Response> {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: error.message || "An error occurred while processing the video." 
       }),
       { 
         status: 500,

@@ -77,48 +77,65 @@ export const useVideoProcessing = () => {
       // Make a single request to Railway with all settings
       setProgress(20);
       
-      // Send request to process-video endpoint which forwards to Railway
-      const response = await fetch('/process-video', {
-        method: 'POST',
-        body: formData
-      });
-      
-      setProgress(80);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Processing failed");
-      }
-      
-      const responseData = await response.json();
-      
-      // Update the progress to 100%
-      setProgress(100);
-      
-      // Set the results
-      if (responseData.results && Array.isArray(responseData.results)) {
-        const processedVideos = responseData.results.map(result => ({
-          name: result.name,
-          url: result.url.startsWith('http') ? result.url : `https://video-server-production-d7af.up.railway.app${result.url}`,
-          processingDetails: result.processingDetails
-        }));
-        
-        setResults(processedVideos);
-        
-        toast({
-          title: "Processing complete",
-          description: `Generated ${processedVideos.length} video variants.`,
-          variant: "default"
+      try {
+        // Send request to process-video endpoint which forwards to Railway
+        const response = await fetch('/process-video', {
+          method: 'POST',
+          body: formData
         });
         
-        return processedVideos;
-      } else {
-        toast({
-          title: "Processing complete",
-          description: "Video processing completed successfully.",
-          variant: "default"
-        });
-        return [];
+        setProgress(80);
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const textResponse = await response.text();
+          console.error('Non-JSON response received:', textResponse.substring(0, 200) + '...');
+          throw new Error('Server returned an unexpected response format. Please try again later.');
+        }
+        
+        const responseData = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(responseData.error || "Processing failed");
+        }
+        
+        // Update the progress to 100%
+        setProgress(100);
+        
+        // Set the results
+        if (responseData.results && Array.isArray(responseData.results)) {
+          const processedVideos = responseData.results.map(result => ({
+            name: result.name,
+            url: result.url.startsWith('http') ? result.url : `https://video-server-production-d7af.up.railway.app${result.url}`,
+            processingDetails: result.processingDetails
+          }));
+          
+          setResults(processedVideos);
+          
+          toast({
+            title: "Processing complete",
+            description: `Generated ${processedVideos.length} video variants.`,
+            variant: "default"
+          });
+          
+          return processedVideos;
+        } else {
+          toast({
+            title: "Processing complete",
+            description: "Video processing completed successfully.",
+            variant: "default"
+          });
+          return [];
+        }
+      } catch (error) {
+        // Handle specific cases of errors
+        if (error.message && error.message.includes('Unexpected token')) {
+          console.error('JSON parsing error:', error);
+          throw new Error('The server response is invalid. This may be due to server issues. Please try again later.');
+        }
+        
+        throw error;
       }
     } catch (error) {
       console.error('Error processing video with Railway:', error);

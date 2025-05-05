@@ -67,18 +67,27 @@ export const processVideoOnServer = async (file: File, params: any) => {
     // Set Railway server URL
     const railwayServerUrl = '/process-video';
     
-    // Send request to Railway server
+    // Send request to Railway server with improved error handling
     const response = await fetch(railwayServerUrl, {
       method: 'POST',
       body: formData,
     });
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Error processing video on Railway server');
+    // Check if response is JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      // If not JSON, get text response for better error message
+      const textResponse = await response.text();
+      console.error('Non-JSON response received:', textResponse.substring(0, 200) + '...');
+      throw new Error('Server returned a non-JSON response. The server might be experiencing issues.');
     }
     
+    // Parse JSON response
     const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Error processing video on Railway server');
+    }
     
     // Transform Railway URLs to be accessible
     if (data.results) {
