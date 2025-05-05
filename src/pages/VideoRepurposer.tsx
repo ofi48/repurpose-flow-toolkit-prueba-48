@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -106,13 +105,30 @@ const VideoRepurposer = () => {
     subParam: 'min' | 'max' | 'enabled', 
     value: number | boolean
   ) => {
-    setSettings(prev => ({
-      ...prev,
-      [param]: {
-        ...prev[param],
-        [subParam]: value
+    setSettings(prev => {
+      // Ensure we're dealing with a valid object before spreading
+      const paramValue = prev[param];
+      if (typeof paramValue === 'object' && paramValue !== null) {
+        return {
+          ...prev,
+          [param]: {
+            ...paramValue,
+            [subParam]: value
+          }
+        };
       }
-    }));
+      
+      // Handle the case where the parameter is not an object (like flipHorizontal)
+      if (subParam === 'enabled' && typeof paramValue === 'boolean') {
+        return {
+          ...prev,
+          [param]: value
+        };
+      }
+      
+      // Return unchanged if we can't update
+      return prev;
+    });
   };
 
   return (
