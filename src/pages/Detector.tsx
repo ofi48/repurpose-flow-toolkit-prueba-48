@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Video, Image as ImageIcon, FileCompare } from 'lucide-react';
+import { Video, Image as ImageIcon, FileText } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import MediaComparisonCard from "@/components/MediaComparisonCard";
@@ -178,7 +178,7 @@ const Detector = () => {
       <div className="max-w-4xl mx-auto">
         <div className="bg-app-dark-accent rounded-lg border border-gray-800 p-6 mb-8">
           <div className="flex justify-center mb-4">
-            <FileCompare className="h-8 w-8 text-app-blue" />
+            <FileText className="h-8 w-8 text-app-blue" />
           </div>
           <p className="text-gray-300 text-center mb-4">
             This advanced media detector analyzes files using multiple comparison techniques:
