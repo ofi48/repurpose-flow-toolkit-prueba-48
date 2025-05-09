@@ -2,35 +2,41 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Search, Video, Image as ImageIcon, Grid3X3 } from 'lucide-react';
+import { Video, Image as ImageIcon, FileCompare } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import FileUpload from "@/components/FileUpload";
+import MediaComparisonCard from "@/components/MediaComparisonCard";
+import ComparisonResult from "@/components/ComparisonResult";
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from "@/components/ui/tabs";
 
 const Detector = () => {
   const [file1, setFile1] = useState<File | null>(null);
   const [file2, setFile2] = useState<File | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
+  const [isComparing, setIsComparing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [similarityResult, setSimilarityResult] = useState<number | null>(null);
   const [comparisonDetails, setComparisonDetails] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<string>("upload");
   const { toast } = useToast();
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, fileNum: 1 | 2) => {
-    if (e.target.files && e.target.files.length > 0) {
-      if (fileNum === 1) {
-        setFile1(e.target.files[0]);
-      } else {
-        setFile2(e.target.files[0]);
-      }
-      
-      // Reset results when files change
-      setSimilarityResult(null);
-      setComparisonDetails(null);
+  const handleFileChange = (newFile: File | null, fileNum: 1 | 2) => {
+    if (fileNum === 1) {
+      setFile1(newFile);
+    } else {
+      setFile2(newFile);
     }
+    
+    // Reset results when files change
+    setSimilarityResult(null);
+    setComparisonDetails(null);
   };
 
-  const checkSimilarity = async () => {
+  const compareFiles = async () => {
     if (!file1 || !file2) {
       toast({
         title: "Files required",
@@ -40,17 +46,20 @@ const Detector = () => {
       return;
     }
 
-    // Validate file types
-    if (!file1.type.startsWith('image/') || !file2.type.startsWith('image/')) {
+    // Check file types - allow image and video comparisons
+    const isFile1Media = file1.type.startsWith('image/') || file1.type.startsWith('video/');
+    const isFile2Media = file2.type.startsWith('image/') || file2.type.startsWith('video/');
+
+    if (!isFile1Media || !isFile2Media) {
       toast({
-        title: "Invalid file type",
-        description: "Pixel comparison only works with image files.",
+        title: "Unsupported file type",
+        description: "Please select image or video files for comparison.",
         variant: "destructive"
       });
       return;
     }
 
-    setIsChecking(true);
+    setIsComparing(true);
     setProgress(0);
     
     try {
@@ -70,12 +79,11 @@ const Detector = () => {
       formData.append('file1', file1);
       formData.append('file2', file2);
       
-      console.log("Sending pixel comparison request via Supabase edge function");
+      console.log("Sending media comparison request via Supabase edge function");
       
-      // Use the Supabase edge function to securely forward the request to Railway
+      // Use the Supabase edge function to securely forward the request
       let response;
       try {
-        // Call the Supabase Edge Function that forwards to Railway
         response = await supabase.functions.invoke('compare-files', {
           body: formData,
           headers: {
@@ -102,41 +110,49 @@ const Detector = () => {
         
         // Process the similarity score from the response
         if (data.similarity !== undefined) {
-          console.log("Received pixel similarity score:", data.similarity);
+          console.log("Received similarity score:", data.similarity);
+          
           // Store any additional details that might be returned
           setComparisonDetails(data.details || null);
           setProgress(100);
           setSimilarityResult(data.similarity);
           
+          // Switch to results tab
+          setActiveTab("results");
+          
           toast({
             title: "Comparison complete",
-            description: `Images are ${data.similarity.toFixed(2)}% similar.`,
+            description: `Files are ${data.similarity.toFixed(1)}% similar.`,
           });
         } else {
           console.log("No similarity score returned, using fallback");
-          // Show a more user-friendly error message
+          
           toast({
             title: "Comparison partially failed",
-            description: "Could not calculate exact similarity. Try uploading smaller images.",
+            description: "Could not calculate exact similarity. Using estimated value.",
             variant: "warning"
           });
           
           // Provide a fallback or estimated result 
           setSimilarityResult(50); // Default to 50% as fallback
-          setComparisonDetails({ note: "This is an estimated value. Exact comparison failed." });
+          setComparisonDetails({ 
+            note: "This is an estimated value. Exact comparison failed.",
+            error: data.error || "Unknown error"
+          });
           setProgress(100);
+          
+          // Switch to results tab
+          setActiveTab("results");
         }
       } catch (error) {
         console.error("Error invoking Supabase edge function:", error);
-        
-        // Just rethrow the error so we can handle it in the outer catch block
         throw error;
       }
     } catch (error) {
       console.error('Error checking similarity:', error);
       toast({
-        title: "Similarity check failed",
-        description: error.message || "An error occurred while checking similarity. Please try again.",
+        title: "Comparison failed",
+        description: error.message || "An error occurred while comparing files. Please try again.",
         variant: "destructive"
       });
       
@@ -144,43 +160,17 @@ const Detector = () => {
       setProgress(0);
       setSimilarityResult(null);
     } finally {
-      setIsChecking(false);
+      setIsComparing(false);
     }
-  };
-
-  // Determine if a file is an image or video
-  const getFileType = (file: File | null) => {
-    if (!file) return null;
-    
-    if (file.type.startsWith('image/')) {
-      return 'image';
-    } else if (file.type.startsWith('video/')) {
-      return 'video';
-    }
-    
-    return 'unknown';
-  };
-
-  // Get icon based on file type
-  const getFileIcon = (file: File | null) => {
-    const type = getFileType(file);
-    
-    if (type === 'image') {
-      return <ImageIcon className="h-8 w-8" />;
-    } else if (type === 'video') {
-      return <Video className="h-8 w-8" />;
-    }
-    
-    return null;
   };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Pixel Similarity Detector</h1>
+          <h1 className="text-3xl font-bold">Advanced Media Similarity Detector</h1>
           <p className="text-gray-400 mt-1">
-            Compare two images pixel by pixel to determine their similarity percentage
+            Compare images and videos using multiple analysis methods
           </p>
         </div>
       </div>
@@ -188,164 +178,108 @@ const Detector = () => {
       <div className="max-w-4xl mx-auto">
         <div className="bg-app-dark-accent rounded-lg border border-gray-800 p-6 mb-8">
           <div className="flex justify-center mb-4">
-            <Grid3X3 className="h-8 w-8 text-app-blue" />
+            <FileCompare className="h-8 w-8 text-app-blue" />
           </div>
           <p className="text-gray-300 text-center mb-4">
-            This pixel similarity detector compares two images by analyzing each pixel's color value. 
-            It calculates the percentage of matching pixels between the images, providing a precise 
-            measure of visual similarity.
+            This advanced media detector analyzes files using multiple comparison techniques:
           </p>
-          <p className="text-gray-400 text-sm text-center">
-            For best results, compare images of the same dimensions.
-          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-400">
+            <div className="space-y-2">
+              <p className="flex items-center">
+                <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
+                Perceptual Hashes
+              </p>
+              <p className="flex items-center">
+                <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
+                Structural Similarity Index
+              </p>
+              <p className="flex items-center">
+                <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
+                Color Histogram Analysis
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="flex items-center">
+                <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
+                Aspect Ratio Comparison
+              </p>
+              <p className="flex items-center">
+                <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
+                Compression Analysis
+              </p>
+              <p className="flex items-center">
+                <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
+                Frame Analysis (Videos)
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          <div className="space-y-4">
-            <h2 className="text-xl font-medium mb-2">First Image</h2>
-            <div 
-              className="border-2 border-dashed border-gray-700 rounded-lg p-8 text-center cursor-pointer hover:border-app-blue transition-colors"
-              onClick={() => document.getElementById('file1-input')?.click()}
-            >
-              <input
-                id="file1-input"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handleFileUpload(e, 1)}
+        <Tabs defaultValue="upload" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="upload">Upload Files</TabsTrigger>
+            <TabsTrigger value="results" disabled={similarityResult === null}>View Results</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="upload" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <MediaComparisonCard 
+                file={file1}
+                fileNum={1}
+                onFileChange={handleFileChange}
               />
               
-              {file1 ? (
-                <div className="space-y-2">
-                  <div className="flex justify-center text-app-blue">
-                    {getFileIcon(file1)}
-                  </div>
-                  <p className="text-sm font-medium">{file1.name}</p>
-                  <p className="text-xs text-gray-400">
-                    {(file1.size / (1024 * 1024)).toFixed(2)} MB • {getFileType(file1)}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-2">
-                    Click to replace
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="text-gray-400 flex justify-center">
-                    <ImageIcon className="h-8 w-8" />
-                  </div>
-                  <p className="text-sm font-medium">Select First Image</p>
-                  <p className="text-xs text-gray-400">
-                    Click to upload an image
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h2 className="text-xl font-medium mb-2">Second Image</h2>
-            <div 
-              className="border-2 border-dashed border-gray-700 rounded-lg p-8 text-center cursor-pointer hover:border-app-blue transition-colors"
-              onClick={() => document.getElementById('file2-input')?.click()}
-            >
-              <input
-                id="file2-input"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handleFileUpload(e, 2)}
+              <MediaComparisonCard 
+                file={file2}
+                fileNum={2}
+                onFileChange={handleFileChange}
               />
-              
-              {file2 ? (
-                <div className="space-y-2">
-                  <div className="flex justify-center text-app-blue">
-                    {getFileIcon(file2)}
-                  </div>
-                  <p className="text-sm font-medium">{file2.name}</p>
-                  <p className="text-xs text-gray-400">
-                    {(file2.size / (1024 * 1024)).toFixed(2)} MB • {getFileType(file2)}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-2">
-                    Click to replace
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="text-gray-400 flex justify-center">
-                    <ImageIcon className="h-8 w-8" />
-                  </div>
-                  <p className="text-sm font-medium">Select Second Image</p>
-                  <p className="text-xs text-gray-400">
-                    Click to upload an image
-                  </p>
-                </div>
-              )}
             </div>
-          </div>
-        </div>
 
-        <div className="flex justify-center mb-8">
-          <Button 
-            size="lg"
-            onClick={checkSimilarity}
-            disabled={!file1 || !file2 || isChecking}
-            className="px-8"
-          >
-            {isChecking ? 'Analyzing Pixels...' : 'Compare Pixel by Pixel'}
-          </Button>
-        </div>
+            <div className="flex justify-center mt-8">
+              <Button 
+                size="lg"
+                onClick={compareFiles}
+                disabled={!file1 || !file2 || isComparing}
+                className="px-8"
+              >
+                {isComparing ? 'Comparing Files...' : 'Compare Files'}
+              </Button>
+            </div>
 
-        {isChecking && (
-          <div className="mb-8">
-            <p className="text-sm text-gray-400 mb-2 text-center">Analyzing image pixels...</p>
-            <Progress value={progress} className="h-2" />
-          </div>
-        )}
-
-        {similarityResult !== null && (
-          <div className="bg-app-dark rounded-lg border border-gray-800 p-6 text-center">
-            <h3 className="text-xl font-bold mb-2">Pixel Comparison Result</h3>
-            
-            <div className="flex items-center justify-center space-x-4 mb-4">
-              <div className="text-sm font-medium">{file1?.name}</div>
-              <div className="text-xl font-bold">VS</div>
-              <div className="text-sm font-medium">{file2?.name}</div>
-            </div>
-            
-            <div className="mb-4">
-              <div className="text-5xl font-bold mb-2 text-app-blue">
-                {similarityResult.toFixed(2)}%
-              </div>
-              <p className="text-sm text-gray-400">pixel similarity</p>
-            </div>
-            
-            <div className={`rounded-md p-3 ${similarityResult < 50 ? 'bg-green-900/20 text-green-400' : 'bg-amber-900/20 text-amber-400'}`}>
-              {similarityResult < 50 ? (
-                <p>These images are significantly different at the pixel level</p>
-              ) : (
-                <p>These images have substantial pixel-level similarity</p>
-              )}
-            </div>
-            
-            {comparisonDetails && (
-              <div className="mt-4 text-left border-t border-gray-800 pt-4">
-                <h4 className="text-sm font-medium mb-2">Additional Details:</h4>
-                <ul className="text-xs text-gray-400 space-y-1">
-                  {Object.entries(comparisonDetails).map(([key, value]) => (
-                    <li key={key} className="flex justify-between">
-                      <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                      <span>{String(value)}</span>
-                    </li>
-                  ))}
-                </ul>
+            {isComparing && (
+              <div className="mt-6">
+                <p className="text-sm text-gray-400 mb-2 text-center">
+                  Analyzing file similarity using multiple methods...
+                </p>
+                <Progress value={progress} className="h-2" />
               </div>
             )}
-          </div>
-        )}
+          </TabsContent>
+          
+          <TabsContent value="results">
+            {similarityResult !== null && (
+              <ComparisonResult 
+                similarity={similarityResult}
+                file1={file1}
+                file2={file2}
+                details={comparisonDetails}
+              />
+            )}
+            
+            <div className="flex justify-center mt-8">
+              <Button 
+                variant="outline"
+                onClick={() => setActiveTab("upload")}
+              >
+                Back to Upload
+              </Button>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
 };
 
 export default Detector;
-

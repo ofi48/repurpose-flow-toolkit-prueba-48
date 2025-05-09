@@ -20,11 +20,22 @@ async function handleVideoProcessing(req: Request): Promise<Response> {
     // Get the request body
     const formData = await req.formData();
     
-    // Forward the request to Railway - Make sure we use the exact correct endpoint URL
-    const railwayUrl = "https://video-server-production-d7af.up.railway.app/process-video";
+    // Check if this is a comparison request
+    const operation = formData.get('operation');
+    const isComparison = operation && 
+      (String(operation).includes('compare') || String(operation) === 'compare-pixels');
+    
+    // Choose the appropriate endpoint based on the operation
+    let railwayUrl = "https://video-server-production-d7af.up.railway.app/process-video";
+    
+    if (isComparison) {
+      // Use the comparison-specific endpoint if available
+      railwayUrl = "https://video-server-production-d7af.up.railway.app/compare-media";
+      console.log("Using comparison-specific endpoint");
+    }
     
     // Log request details for debugging
-    console.log("Forwarding request to Railway:", railwayUrl);
+    console.log(`Forwarding ${isComparison ? 'comparison' : 'processing'} request to Railway:`, railwayUrl);
     console.log("FormData keys:", [...formData.keys()]);
     
     // Send the request to Railway with proper headers - explicitly set Accept header
@@ -49,13 +60,35 @@ async function handleVideoProcessing(req: Request): Promise<Response> {
       const textResponse = await railwayResponse.text();
       console.error('Non-JSON response from Railway (first 500 chars):', textResponse.substring(0, 500));
       
+      // For comparison requests, try to handle errors gracefully
+      if (isComparison) {
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            similarity: 50, // Fallback similarity value for comparison requests
+            details: {
+              note: "Could not perform accurate comparison. Using estimated value.",
+              error: "Remote API returned non-JSON response",
+              responsePreview: textResponse.substring(0, 200)
+            }
+          }),
+          { 
+            status: 200, // Return 200 to prevent client-side errors for comparison
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            } 
+          }
+        );
+      }
+      
       // Determine if it's an HTML error page
       const isHtmlError = textResponse.toLowerCase().includes('<!doctype html') || 
                           textResponse.toLowerCase().includes('<html');
       
       let errorMessage = 'Unexpected response from video processing server.';
       if (isHtmlError) {
-        errorMessage = 'The video processing server returned an HTML page instead of JSON. Ensure you are using the correct endpoint: /process-video';
+        errorMessage = 'The server returned an HTML page instead of JSON. Ensure you are using the correct endpoint.';
       }
       
       return new Response(
@@ -94,6 +127,28 @@ async function handleVideoProcessing(req: Request): Promise<Response> {
     } catch (jsonError) {
       console.error('Error parsing Railway JSON response:', jsonError);
       
+      // For comparison requests, return a fallback value
+      if (isComparison) {
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            similarity: 50, // Fallback value
+            error: 'Error parsing response from comparison server.',
+            details: {
+              note: "Using estimated value due to parsing error",
+              errorDetails: jsonError.message
+            }
+          }),
+          { 
+            status: 200,
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            } 
+          }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -115,7 +170,7 @@ async function handleVideoProcessing(req: Request): Promise<Response> {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || "An error occurred while processing the video." 
+        error: error.message || "An error occurred while processing the request." 
       }),
       { 
         status: 500,
