@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { VideoPresetSettings } from '@/types/preset';
 import { useToast } from "@/hooks/use-toast";
 import { generateProcessingParameters, processVideoOnServer } from '@/utils/videoProcessing';
-import { uploadFileWithProgress } from "@/integrations/supabase/client";
 
 export const useVideoProcessing = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);

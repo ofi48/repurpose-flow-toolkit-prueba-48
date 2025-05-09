@@ -1,123 +1,110 @@
-import { useState } from 'react';
-import { VideoPresetSettings } from '@/types/preset';
-import { useToast } from "@/hooks/use-toast";
 
-const defaultSettings: VideoPresetSettings = {
-  speed: { min: 0.9, max: 1.1, enabled: true },
-  trimStart: { min: 0, max: 0.5, enabled: true },
-  trimEnd: { min: 0, max: 0.5, enabled: false },
-  saturation: { min: 0.9, max: 1.1, enabled: true },
-  contrast: { min: 0.9, max: 1.1, enabled: true },
+import { useState, useEffect } from 'react';
+import { VideoPresetSettings, ImagePresetSettings, GifSettings } from '@/types/preset';
+
+// Default video settings are defined in VideoRepurposer.tsx to include all the new parameters
+
+// Default image settings
+const defaultImageSettings: ImagePresetSettings = {
+  flipHorizontal: false,
   brightness: { min: 0.9, max: 1.1, enabled: true },
-  audioBitrate: { min: 96, max: 128, enabled: false },
-  flipHorizontal: false
+  contrast: { min: 0.9, max: 1.1, enabled: true },
+  saturation: { min: 0.9, max: 1.1, enabled: true },
+  blurBorder: false,
+  compression: { min: 70, max: 90, enabled: true },
 };
 
-export const usePresets = () => {
-  const [settings, setSettings] = useState<VideoPresetSettings>(defaultSettings);
-  const [presetName, setPresetName] = useState("");
-  const [presets, setPresets] = useState<{name: string, settings: VideoPresetSettings}[]>([]);
-  const { toast } = useToast();
+// Default GIF settings
+const defaultGifSettings: GifSettings = {
+  frameRate: 10,
+  width: 320,
+  quality: 10,
+};
 
-  const updateSettingParam = (
-    param: keyof VideoPresetSettings, 
-    subParam: 'min' | 'max' | 'enabled', 
-    value: number | boolean
-  ) => {
-    setSettings(prev => {
-      // Ensure we're dealing with a valid object before spreading
-      const paramValue = prev[param];
-      if (typeof paramValue === 'object' && paramValue !== null) {
-        return {
-          ...prev,
-          [param]: {
-            ...paramValue,
-            [subParam]: value
-          }
+export const usePresets = <T extends VideoPresetSettings | ImagePresetSettings | GifSettings>(
+  initialSettings?: T
+) => {
+  const [settings, setSettings] = useState<T>(initialSettings as T);
+  const [presetName, setPresetName] = useState('');
+  const [presets, setPresets] = useState<T[]>([]);
+
+  // Load presets from localStorage on initial render
+  useEffect(() => {
+    const savedPresetsString = localStorage.getItem('presets');
+    
+    if (savedPresetsString) {
+      try {
+        const savedPresets = JSON.parse(savedPresetsString);
+        setPresets(Array.isArray(savedPresets) ? savedPresets : []);
+      } catch (e) {
+        console.error('Error parsing saved presets:', e);
+        setPresets([]);
+      }
+    }
+  }, []);
+
+  // Generic method to update a setting parameter
+  const updateSettingParam = (param: keyof T, subParam: string, value: any) => {
+    setSettings((prev) => {
+      const newSettings = { ...prev };
+      
+      if (subParam) {
+        // For nested params like { min, max, enabled }
+        newSettings[param] = {
+          ...newSettings[param],
+          [subParam]: value,
         };
+      } else {
+        // For direct params like flipHorizontal
+        newSettings[param] = value;
       }
       
-      // Handle the case where the parameter is not an object (like flipHorizontal)
-      if (subParam === 'enabled' && typeof paramValue === 'boolean') {
-        return {
-          ...prev,
-          [param]: value
-        };
-      }
-      
-      // Return unchanged if we can't update
-      return prev;
+      return newSettings;
     });
   };
 
+  // Save a preset
   const savePreset = () => {
-    if (!presetName.trim()) {
-      toast({
-        title: "Preset name required",
-        description: "Please enter a name for your preset.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Check if preset name already exists
-    if (presets.some(preset => preset.name === presetName)) {
-      toast({
-        title: "Preset name already exists",
-        description: "Please choose a different name for your preset.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Save preset
+    if (!presetName) return;
+    
+    // Create new preset with settings and name
     const newPreset = {
+      ...settings,
       name: presetName,
-      settings: {...settings}
-    };
+    } as T;
     
-    setPresets([...presets, newPreset]);
-    
-    toast({
-      title: "Preset saved",
-      description: `"${presetName}" preset has been saved.`,
-      variant: "default"
-    });
-    
-    setPresetName("");
-  };
-
-  const loadPreset = (presetIndex: number) => {
-    const selectedPreset = presets[presetIndex];
-    setSettings(selectedPreset.settings);
-    
-    toast({
-      title: "Preset loaded",
-      description: `"${selectedPreset.name}" preset has been loaded.`,
-      variant: "default"
-    });
-  };
-
-  const deletePreset = (presetIndex: number) => {
-    const updatedPresets = [...presets];
-    updatedPresets.splice(presetIndex, 1);
+    // Add to presets
+    const updatedPresets = [...presets.filter(p => p.name !== presetName), newPreset];
     setPresets(updatedPresets);
     
-    toast({
-      title: "Preset deleted",
-      description: "Preset has been removed.",
-      variant: "default"
-    });
+    // Save to localStorage
+    localStorage.setItem('presets', JSON.stringify(updatedPresets));
+    
+    return newPreset;
+  };
+
+  // Load a preset
+  const loadPreset = (presetToLoad: T) => {
+    setSettings(presetToLoad);
+    setPresetName(presetToLoad.name || '');
+  };
+
+  // Delete a preset
+  const deletePreset = (presetToDelete: T) => {
+    const updatedPresets = presets.filter(p => p.name !== presetToDelete.name);
+    setPresets(updatedPresets);
+    localStorage.setItem('presets', JSON.stringify(updatedPresets));
   };
 
   return {
     settings,
+    setSettings,
     presetName,
-    presets,
     setPresetName,
+    presets,
     updateSettingParam,
     savePreset,
     loadPreset,
-    deletePreset
+    deletePreset,
   };
 };

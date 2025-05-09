@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +34,55 @@ const VideoRepurposer = () => {
     setResults
   } = useVideoProcessing();
 
+  // Extended default settings for the new parameters
+  const defaultSettings = {
+    // Video Quality
+    videoBitrate: { min: 3000, max: 8000, enabled: true },
+    audioBitrate: { min: 128, max: 192, enabled: false },
+    frameRate: { min: 30, max: 30, enabled: false },
+    
+    // Color Adjustments
+    saturation: { min: 0.9, max: 1.1, enabled: true },
+    contrast: { min: 0.9, max: 1.1, enabled: true },
+    brightness: { min: -0.1, max: 0.1, enabled: true },
+    gamma: { min: 0.9, max: 1.1, enabled: false },
+    
+    // Effects
+    vignette: { min: 0, max: 0.3, enabled: false },
+    noise: { min: 0, max: 0.05, enabled: false },
+    waveformShift: { min: 0, max: 2, enabled: false },
+    pixelShift: { min: 0, max: 2, enabled: false },
+    
+    // Transformations
+    speed: { min: 0.95, max: 1.05, enabled: true },
+    zoom: { min: 1, max: 1.05, enabled: false },
+    rotation: { min: -2, max: 2, enabled: false },
+    flipHorizontal: false,
+    
+    // Size & Trim
+    pixelSize: "",
+    randomPixelSize: false,
+    trimStart: { min: 0, max: 1, enabled: true },
+    trimEnd: { min: 0, max: 1, enabled: false },
+    
+    // Special Features
+    usMetadata: false,
+    blurredBorder: { min: 0, max: 30, enabled: false },
+    
+    // Audio
+    volume: { min: 0.9, max: 1.1, enabled: false },
+    
+    // Watermark
+    watermark: {
+      enabled: false,
+      size: 100,
+      opacity: 0.5,
+      x: 0.5,
+      y: 0.5,
+    }
+  };
+  
+  // Update usePresets with our extended settings
   const {
     settings,
     presetName,
@@ -42,7 +92,7 @@ const VideoRepurposer = () => {
     savePreset,
     loadPreset,
     deletePreset
-  } = usePresets();
+  } = usePresets(defaultSettings);
   
   // Create a ref for the hidden download link
   const downloadLinkRef = useRef<HTMLAnchorElement | null>(null);
@@ -101,6 +151,15 @@ const VideoRepurposer = () => {
     } catch (error) {
       console.error('Error in handleStartProcess:', error);
     }
+  };
+
+  const updateWatermarkParam = (param: string, value: any) => {
+    // Create a copy of the settings
+    const newSettings = { ...settings };
+    // Update the specific watermark parameter
+    newSettings.watermark[param] = value;
+    // Update the settings using the generic updateSettingParam
+    updateSettingParam('watermark', '', newSettings.watermark);
   };
 
   const handlePreview = (fileName: string, fileUrl: string) => {
@@ -196,8 +255,6 @@ const VideoRepurposer = () => {
         </div>
       </div>
 
-      {/* We no longer need the ffmpeg loading notification since we're not using it client-side */}
-
       <Tabs 
         value={activeTab} 
         onValueChange={(value) => {
@@ -226,6 +283,7 @@ const VideoRepurposer = () => {
             handleStartProcess={handleStartProcess}
             settings={settings}
             updateSettingParam={updateSettingParam}
+            updateWatermarkParam={updateWatermarkParam}
           />
         </TabsContent>
 
