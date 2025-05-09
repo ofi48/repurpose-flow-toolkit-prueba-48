@@ -20,8 +20,11 @@ async function handleFileComparison(req: Request): Promise<Response> {
     // Get the request body
     const formData = await req.formData();
     
-    // Forward the request to Railway
-    const railwayUrl = "https://video-server-production-d7af.up.railway.app/process-video/compare-pixels";
+    // Add a parameter to indicate this is a pixel comparison request
+    formData.append('operation', 'compare-pixels');
+    
+    // Forward the request to Railway - use the main endpoint instead of /compare-pixels
+    const railwayUrl = "https://video-server-production-d7af.up.railway.app/process-video";
     
     // Log request details for debugging
     console.log("Forwarding pixel comparison request to Railway:", railwayUrl);
@@ -49,21 +52,12 @@ async function handleFileComparison(req: Request): Promise<Response> {
       const textResponse = await railwayResponse.text();
       console.error('Non-JSON response from Railway (first 500 chars):', textResponse.substring(0, 500));
       
-      // Determine if it's an HTML error page
-      const isHtmlError = textResponse.toLowerCase().includes('<!doctype html') || 
-                          textResponse.toLowerCase().includes('<html');
-      
-      let errorMessage = 'Unexpected response from pixel comparison server.';
-      if (isHtmlError) {
-        errorMessage = 'The pixel comparison server returned an HTML page instead of JSON. Ensure you are using the correct endpoint: /process-video/compare-pixels';
-      }
-      
+      // Return a more detailed error message but make it user-friendly
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: errorMessage,
-          contentType: contentType || 'undefined',
-          responsePreview: textResponse.substring(0, 200)
+          error: 'The server returned an unexpected response format. Please try again later.',
+          details: 'Remote API returned non-JSON response. This is likely a configuration issue on the backend.'
         }),
         { 
           status: 500,
@@ -134,7 +128,8 @@ async function handleFileComparison(req: Request): Promise<Response> {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || "An error occurred while comparing files pixel by pixel." 
+        error: error.message || "An error occurred while comparing files pixel by pixel.",
+        fallback: true
       }),
       { 
         status: 500,
@@ -156,3 +151,4 @@ serve(async (req) => {
 
   return handleFileComparison(req);
 });
+
