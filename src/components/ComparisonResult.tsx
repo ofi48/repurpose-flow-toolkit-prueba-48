@@ -59,10 +59,15 @@ const ComparisonResult: React.FC<ComparisonResultProps> = ({
 
   // Get message based on similarity value
   const getSimilarityMessage = (value: number): string => {
-    if (value < 30) return "These files are significantly different";
-    if (value < 60) return "These files have some similarities";
-    if (value < 80) return "These files have substantial similarities";
-    return "These files are nearly identical";
+    // Special case for identical files
+    if (details?.identicalFiles) {
+      return "These files are 100% identical";
+    }
+    
+    if (value < 30) return "These files have significantly different visual patterns";
+    if (value < 60) return "These files have somewhat similar visual patterns";
+    if (value < 80) return "These files have very similar visual patterns";
+    return "These files have nearly identical visual patterns";
   };
 
   const getFileTypeIcon = (file: File | null) => {
@@ -82,21 +87,18 @@ const ComparisonResult: React.FC<ComparisonResultProps> = ({
     if (!details) return {};
     
     const groups: Record<string, Record<string, any>> = {
-      'Visual Similarity': {},
-      'Content Analysis': {},
+      'Perceptual Hash Analysis': {},
       'Technical Details': {},
       'Other': {}
     };
     
     Object.entries(details).forEach(([key, value]) => {
       // Skip certain metadata fields
-      if (key === 'note' || key === 'error' || key === 'originalResponse') return;
+      if (key === 'note' || key === 'error' || key === 'identicalFiles') return;
       
-      if (key.includes('perceptual') || key.includes('ssim') || key.includes('color') || key.includes('pixel')) {
-        groups['Visual Similarity'][key] = value;
-      } else if (key.includes('frame') || key.includes('content') || key.includes('feature')) {
-        groups['Content Analysis'][key] = value;
-      } else if (key.includes('ratio') || key.includes('format') || key.includes('size') || key.includes('resolution')) {
+      if (key.includes('hash') || key.includes('hamming') || key.includes('distance')) {
+        groups['Perceptual Hash Analysis'][key] = value;
+      } else if (key.includes('ratio') || key.includes('format') || key.includes('size') || key.includes('maxPossible')) {
         groups['Technical Details'][key] = value;
       } else {
         groups['Other'][key] = value;
@@ -112,10 +114,10 @@ const ComparisonResult: React.FC<ComparisonResultProps> = ({
     return (
       <div className="bg-app-dark rounded-lg border border-gray-800 p-6">
         <div className="text-center space-y-4">
-          <h3 className="text-xl font-bold">Analyzing Media Files</h3>
+          <h3 className="text-xl font-bold">Analyzing Visual Patterns</h3>
           <Progress value={undefined} className="h-2" />
           <p className="text-sm text-gray-400">
-            Comparing media files using multiple analysis methods...
+            Generating perceptual hash signatures and comparing visual patterns...
           </p>
         </div>
       </div>
@@ -125,7 +127,7 @@ const ComparisonResult: React.FC<ComparisonResultProps> = ({
   return (
     <div className="bg-app-dark rounded-lg border border-gray-800 p-6">
       <div className="text-center">
-        <h3 className="text-xl font-bold mb-4">Similarity Analysis Result</h3>
+        <h3 className="text-xl font-bold mb-4">Perceptual Hash Comparison</h3>
         
         <div className="flex items-center justify-center space-x-4 mb-6">
           <div className="flex items-center text-sm font-medium">
@@ -139,6 +141,15 @@ const ComparisonResult: React.FC<ComparisonResultProps> = ({
           </div>
         </div>
         
+        {details?.identicalFiles && (
+          <div className="mb-4 p-3 bg-green-900/20 rounded-md">
+            <div className="flex items-center justify-center text-green-400">
+              <CheckCircle className="h-5 w-5 mr-2" />
+              <span>Files are identical at the binary level</span>
+            </div>
+          </div>
+        )}
+        
         <div className="mb-6">
           <div className="mx-auto w-36 h-36 relative flex items-center justify-center">
             <Gauge className="absolute w-32 h-32 opacity-10" />
@@ -146,7 +157,7 @@ const ComparisonResult: React.FC<ComparisonResultProps> = ({
               {similarity.toFixed(1)}%
             </div>
           </div>
-          <p className="text-sm text-gray-400 mt-2">overall similarity</p>
+          <p className="text-sm text-gray-400 mt-2">visual pattern similarity</p>
         </div>
         
         <div className={`rounded-md p-3 mb-6 ${getSimilarityBgColor(similarity)}`}>

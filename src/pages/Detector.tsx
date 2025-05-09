@@ -46,19 +46,6 @@ const Detector = () => {
       return;
     }
 
-    // Check file types - allow image and video comparisons
-    const isFile1Media = file1.type.startsWith('image/') || file1.type.startsWith('video/');
-    const isFile2Media = file2.type.startsWith('image/') || file2.type.startsWith('video/');
-
-    if (!isFile1Media || !isFile2Media) {
-      toast({
-        title: "Unsupported file type",
-        description: "Please select image or video files for comparison.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsComparing(true);
     setProgress(0);
     
@@ -79,7 +66,7 @@ const Detector = () => {
       formData.append('file1', file1);
       formData.append('file2', file2);
       
-      console.log("Sending media comparison request via Supabase edge function");
+      console.log("Sending perceptual hash comparison request via Supabase edge function");
       
       // Use the Supabase edge function to securely forward the request
       let response;
@@ -121,15 +108,15 @@ const Detector = () => {
           setActiveTab("results");
           
           toast({
-            title: "Comparison complete",
-            description: `Files are ${data.similarity.toFixed(1)}% similar.`,
+            title: "Perceptual hash comparison complete",
+            description: `Visual pattern similarity: ${data.similarity.toFixed(1)}%`,
           });
         } else {
           console.log("No similarity score returned, using fallback");
           
           toast({
             title: "Comparison partially failed",
-            description: "Could not calculate exact similarity. Using estimated value.",
+            description: "Could not calculate visual pattern similarity. Using estimated value.",
             variant: "warning"
           });
           
@@ -168,9 +155,9 @@ const Detector = () => {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Advanced Media Similarity Detector</h1>
+          <h1 className="text-3xl font-bold">Perceptual Hash Detector</h1>
           <p className="text-gray-400 mt-1">
-            Compare images and videos using multiple analysis methods
+            Compare visual patterns in images and videos using perceptual hash techniques
           </p>
         </div>
       </div>
@@ -181,35 +168,35 @@ const Detector = () => {
             <FileText className="h-8 w-8 text-app-blue" />
           </div>
           <p className="text-gray-300 text-center mb-4">
-            This advanced media detector analyzes files using multiple comparison techniques:
+            This perceptual hash detector converts files into unique signatures based on visual patterns:
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-400">
             <div className="space-y-2">
               <p className="flex items-center">
                 <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
-                Perceptual Hashes
+                Generates compact perceptual hash signatures
               </p>
               <p className="flex items-center">
                 <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
-                Structural Similarity Index
+                Identifies visually similar content regardless of format
               </p>
               <p className="flex items-center">
                 <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
-                Color Histogram Analysis
+                Measures Hamming distance between visual signatures
               </p>
             </div>
             <div className="space-y-2">
               <p className="flex items-center">
                 <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
-                Aspect Ratio Comparison
+                Robust against minor edits and alterations
               </p>
               <p className="flex items-center">
                 <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
-                Compression Analysis
+                Fast binary-level comparisons for exact matches
               </p>
               <p className="flex items-center">
                 <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
-                Frame Analysis (Videos)
+                Works with both image and video files
               </p>
             </div>
           </div>
@@ -243,14 +230,14 @@ const Detector = () => {
                 disabled={!file1 || !file2 || isComparing}
                 className="px-8"
               >
-                {isComparing ? 'Comparing Files...' : 'Compare Files'}
+                {isComparing ? 'Analyzing Visual Patterns...' : 'Compare Visual Patterns'}
               </Button>
             </div>
 
             {isComparing && (
               <div className="mt-6">
                 <p className="text-sm text-gray-400 mb-2 text-center">
-                  Analyzing file similarity using multiple methods...
+                  Generating and comparing perceptual hash signatures...
                 </p>
                 <Progress value={progress} className="h-2" />
               </div>
