@@ -21,10 +21,10 @@ async function handleFileComparison(req: Request): Promise<Response> {
     const formData = await req.formData();
     
     // Forward the request to Railway
-    const railwayUrl = "https://video-server-production-d7af.up.railway.app/process-video/compare";
+    const railwayUrl = "https://video-server-production-d7af.up.railway.app/process-video/compare-pixels";
     
     // Log request details for debugging
-    console.log("Forwarding comparison request to Railway:", railwayUrl);
+    console.log("Forwarding pixel comparison request to Railway:", railwayUrl);
     console.log("FormData keys:", [...formData.keys()]);
     
     // Send the request to Railway with proper headers
@@ -53,9 +53,9 @@ async function handleFileComparison(req: Request): Promise<Response> {
       const isHtmlError = textResponse.toLowerCase().includes('<!doctype html') || 
                           textResponse.toLowerCase().includes('<html');
       
-      let errorMessage = 'Unexpected response from file comparison server.';
+      let errorMessage = 'Unexpected response from pixel comparison server.';
       if (isHtmlError) {
-        errorMessage = 'The file comparison server returned an HTML page instead of JSON. Ensure you are using the correct endpoint: /process-video/compare';
+        errorMessage = 'The pixel comparison server returned an HTML page instead of JSON. Ensure you are using the correct endpoint: /process-video/compare-pixels';
       }
       
       return new Response(
@@ -81,6 +81,25 @@ async function handleFileComparison(req: Request): Promise<Response> {
       railwayData = await railwayResponse.json();
       console.log("Railway data received:", JSON.stringify(railwayData).substring(0, 200));
       
+      // If we received valid pixel similarity data
+      if (railwayData.pixelSimilarity !== undefined) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            similarity: railwayData.pixelSimilarity,
+            details: railwayData.details || {}
+          }),
+          { 
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            },
+            status: 200
+          }
+        );
+      }
+      
+      // If we have a different successful response
       return new Response(
         JSON.stringify(railwayData),
         { 
@@ -97,7 +116,7 @@ async function handleFileComparison(req: Request): Promise<Response> {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Error parsing response from file comparison server.', 
+          error: 'Error parsing response from pixel comparison server.', 
           details: jsonError.message 
         }),
         { 
@@ -115,7 +134,7 @@ async function handleFileComparison(req: Request): Promise<Response> {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || "An error occurred while comparing the files." 
+        error: error.message || "An error occurred while comparing files pixel by pixel." 
       }),
       { 
         status: 500,
