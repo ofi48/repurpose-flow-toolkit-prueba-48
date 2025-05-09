@@ -2,8 +2,6 @@
 import { useState, useEffect } from 'react';
 import { VideoPresetSettings, ImagePresetSettings, GifSettings } from '@/types/preset';
 
-// Default video settings are defined in VideoRepurposer.tsx to include all the new parameters
-
 // Default image settings
 const defaultImageSettings: ImagePresetSettings = {
   flipHorizontal: false,

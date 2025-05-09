@@ -88,46 +88,13 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
         </div>
 
         <div className="lg:col-span-2">
-          <Tabs defaultValue="video-quality" className="w-full">
-            <TabsList className="grid grid-cols-4 mb-4">
-              <TabsTrigger value="video-quality">Quality</TabsTrigger>
-              <TabsTrigger value="color">Color</TabsTrigger>
-              <TabsTrigger value="effects">Effects</TabsTrigger>
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="video-quality" className="space-y-4">
-              <VideoProcessingPanel 
-                settings={settings} 
-                updateSettingParam={updateSettingParam}
-                updateWatermarkParam={updateWatermarkParam}
-              />
-            </TabsContent>
-            
-            <TabsContent value="color" className="space-y-4">
-              <VideoProcessingPanel 
-                settings={settings} 
-                updateSettingParam={updateSettingParam}
-                updateWatermarkParam={updateWatermarkParam}
-              />
-            </TabsContent>
-            
-            <TabsContent value="effects" className="space-y-4">
-              <VideoProcessingPanel 
-                settings={settings} 
-                updateSettingParam={updateSettingParam}
-                updateWatermarkParam={updateWatermarkParam}
-              />
-            </TabsContent>
-            
-            <TabsContent value="advanced" className="space-y-4">
-              <VideoProcessingPanel 
-                settings={settings} 
-                updateSettingParam={updateSettingParam}
-                updateWatermarkParam={updateWatermarkParam}
-              />
-            </TabsContent>
-          </Tabs>
+          <div className="w-full">
+            <VideoProcessingPanel 
+              settings={settings} 
+              updateSettingParam={updateSettingParam}
+              updateWatermarkParam={updateWatermarkParam}
+            />
+          </div>
         </div>
       </div>
     </div>

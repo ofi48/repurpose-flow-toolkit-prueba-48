@@ -7,12 +7,12 @@ import { Save, X } from 'lucide-react';
 import { VideoPresetSettings } from '@/types/preset';
 
 interface PresetManagerProps {
-  presets: { name: string; settings: VideoPresetSettings }[];
+  presets: VideoPresetSettings[];
   presetName: string;
   setPresetName: (name: string) => void;
   onSavePreset: () => void;
-  onLoadPreset: (index: number) => void;
-  onDeletePreset: (index: number) => void;
+  onLoadPreset: (preset: VideoPresetSettings) => void;
+  onDeletePreset: (preset: VideoPresetSettings) => void;
 }
 
 const PresetManager: React.FC<PresetManagerProps> = ({
@@ -58,16 +58,16 @@ const PresetManager: React.FC<PresetManagerProps> = ({
                 <div>
                   <h3 className="font-semibold">{preset.name}</h3>
                   <p className="text-sm text-gray-400">
-                    {Object.entries(preset.settings).filter(([_, setting]) => 
-                      typeof setting === 'object' ? setting.enabled : setting
+                    {Object.entries(preset).filter(([key, value]) => 
+                      key !== 'name' && (typeof value === 'object' ? value.enabled : value)
                     ).length} parameters enabled
                   </p>
                 </div>
                 <div className="flex space-x-2">
-                  <Button variant="outline" size="sm" onClick={() => onLoadPreset(index)}>
+                  <Button variant="outline" size="sm" onClick={() => onLoadPreset(preset)}>
                     Load
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={() => onDeletePreset(index)}>
+                  <Button variant="destructive" size="sm" onClick={() => onDeletePreset(preset)}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>

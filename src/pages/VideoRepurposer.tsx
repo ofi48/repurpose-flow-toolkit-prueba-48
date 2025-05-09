@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -244,6 +243,16 @@ const VideoRepurposer = () => {
     });
   };
 
+  // Handle loading a preset by its reference rather than index
+  const handleLoadPreset = (presetToLoad: any) => {
+    loadPreset(presetToLoad);
+  };
+
+  // Handle deleting a preset by its reference rather than index
+  const handleDeletePreset = (presetToDelete: any) => {
+    deletePreset(presetToDelete);
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -293,8 +302,8 @@ const VideoRepurposer = () => {
             presetName={presetName}
             setPresetName={setPresetName}
             onSavePreset={savePreset}
-            onLoadPreset={loadPreset}
-            onDeletePreset={deletePreset}
+            onLoadPreset={handleLoadPreset}
+            onDeletePreset={handleDeletePreset}
           />
         </TabsContent>
 

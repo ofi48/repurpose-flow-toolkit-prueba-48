@@ -13,7 +13,7 @@ import {
   Sliders, 
   Gauge, 
   Contrast, 
-  Brightness, 
+  Sun, 
   CircleDashed, 
   Zap, 
   RotateCw, 
@@ -22,10 +22,10 @@ import {
   Star, 
   Image as ImageIcon,
   Scissors,
-  Speed,
+  FastForward,
   ZoomIn,
-  Waveform,
-  Pixel
+  AudioWaveform,
+  Grid3X3
 } from 'lucide-react';
 
 interface VideoProcessingPanelProps {
@@ -194,7 +194,7 @@ const VideoProcessingPanel: React.FC<VideoProcessingPanelProps> = ({
       </ParameterSection>
       
       {/* Transformations */}
-      <ParameterSection title="Speed & Zoom" icon={<Speed className="h-5 w-5" />}>
+      <ParameterSection title="Speed & Zoom" icon={<FastForward className="h-5 w-5" />}>
         <ParameterSlider
           title="Speed"
           min={0.5}
