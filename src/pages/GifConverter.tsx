@@ -17,11 +17,13 @@ const GifConverter = () => {
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<string | null>(null);
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleFileSelect = (file: File) => {
     setUploadedFile(file);
     setResult(null);
+    setResultUrl(null);
   };
 
   const handleConvert = () => {
@@ -29,6 +31,16 @@ const GifConverter = () => {
       toast({
         title: "No file selected",
         description: "Please upload a video file to continue.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if the file is a video
+    if (!uploadedFile.type.startsWith('video/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a video file (MP4, WebM, MOV).",
         variant: "destructive"
       });
       return;
@@ -43,8 +55,16 @@ const GifConverter = () => {
           clearInterval(interval);
           setProcessing(false);
           
-          // Mock result
-          setResult(`${uploadedFile.name.split('.')[0]}.gif`);
+          // Create a mock result
+          const resultName = `${uploadedFile.name.split('.')[0]}.gif`;
+          setResult(resultName);
+          
+          // For demonstration, we'll create a URL that can be used for download
+          // In a real app, this would be the URL to the converted GIF
+          // Since we're mocking, we'll create a blob with minimal content
+          const blob = new Blob(["GIF89a"], { type: 'image/gif' });
+          const url = URL.createObjectURL(blob);
+          setResultUrl(url);
           
           toast({
             title: "Conversion complete",
@@ -57,6 +77,45 @@ const GifConverter = () => {
         return prev + 2;
       });
     }, 100);
+  };
+
+  const handleDownload = () => {
+    if (!result || !resultUrl) {
+      toast({
+        title: "No file to download",
+        description: "Please convert a video to GIF first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Create a temporary link element
+    const link = document.createElement('a');
+    link.href = resultUrl;
+    link.download = result;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Download started",
+      description: `Downloading ${result}`,
+      variant: "default"
+    });
+  };
+
+  const handlePreview = () => {
+    if (!result || !resultUrl) {
+      toast({
+        title: "No file to preview",
+        description: "Please convert a video to GIF first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Open the GIF in a new tab
+    window.open(resultUrl, '_blank');
   };
 
   return (
@@ -186,7 +245,15 @@ const GifConverter = () => {
               
               <div className="bg-app-dark-accent border border-gray-700 rounded-lg overflow-hidden">
                 <div className="aspect-video bg-black flex items-center justify-center">
-                  <FileImage className="h-12 w-12 text-gray-600" />
+                  {resultUrl ? (
+                    <img 
+                      src={resultUrl} 
+                      alt="GIF Preview" 
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <FileImage className="h-12 w-12 text-gray-600" />
+                  )}
                 </div>
                 <div className="p-3">
                   <p className="font-medium">{result}</p>
@@ -194,11 +261,11 @@ const GifConverter = () => {
                     {width}px width • {frameRate}fps • {quality}% quality
                   </p>
                   <div className="flex items-center justify-between mt-2">
-                    <Button variant="outline" size="sm" className="flex-1 mr-2">
+                    <Button variant="outline" size="sm" className="flex-1 mr-2" onClick={handlePreview}>
                       <Play className="h-4 w-4 mr-1" />
                       Preview
                     </Button>
-                    <Button size="sm" className="flex-1">
+                    <Button size="sm" className="flex-1" onClick={handleDownload}>
                       <Download className="h-4 w-4 mr-1" />
                       Download
                     </Button>
