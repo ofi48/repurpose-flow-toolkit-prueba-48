@@ -13,6 +13,7 @@ interface ReducedImage {
   originalSize: number;
   reducedSize: number;
   url: string;
+  blob?: Blob;
 }
 
 const FileReducer = () => {
@@ -38,38 +39,135 @@ const FileReducer = () => {
       return;
     }
 
+    // Check if file is an image
+    if (!uploadedFile.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an image file (JPEG, PNG, WebP).",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setProcessing(true);
+    setProgress(0);
     
-    // Simulate processing - in a real app, this would call an API
-    const interval = setInterval(() => {
+    // Simulate initial processing steps
+    const progressInterval = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setProcessing(false);
-          
-          // Calculate mock reduced size (roughly quality% of original)
-          const originalSize = uploadedFile.size;
-          const reducedSize = Math.round(originalSize * (quality / 100));
-          
-          // Mock result
-          setResult({
-            name: uploadedFile.name,
-            originalSize,
-            reducedSize,
-            url: "reduced-image.jpg"
-          });
-          
-          toast({
-            title: "Image reduced",
-            description: `File size reduced by ${Math.round((1 - quality/100) * 100)}%.`,
-            variant: "default"
-          });
-          
-          return 100;
+        if (prev >= 60) {
+          clearInterval(progressInterval);
+          return 60;
         }
         return prev + 5;
       });
     }, 100);
+
+    // Create a canvas to resize/compress the image
+    const img = new Image();
+    img.onload = () => {
+      // Clear the progress interval
+      clearInterval(progressInterval);
+      setProgress(70);
+      
+      // Create canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      
+      // Draw image on canvas
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        setProcessing(false);
+        toast({
+          title: "Processing failed",
+          description: "Unable to process image. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      
+      // Convert to blob with reduced quality
+      setProgress(90);
+      
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            setProcessing(false);
+            toast({
+              title: "Processing failed",
+              description: "Failed to generate reduced image.",
+              variant: "destructive"
+            });
+            return;
+          }
+
+          setProgress(100);
+          
+          // Create a URL for the blob
+          const url = URL.createObjectURL(blob);
+          
+          // Create result object
+          const reducedImage: ReducedImage = {
+            name: `reduced_${uploadedFile.name}`,
+            originalSize: uploadedFile.size,
+            reducedSize: blob.size,
+            url: url,
+            blob: blob
+          };
+          
+          setResult(reducedImage);
+          setProcessing(false);
+          
+          toast({
+            title: "Image reduced",
+            description: `File size reduced by ${Math.round((1 - blob.size/uploadedFile.size) * 100)}%.`,
+            variant: "default"
+          });
+        },
+        uploadedFile.type,
+        quality / 100
+      );
+    };
+    
+    img.onerror = () => {
+      clearInterval(progressInterval);
+      setProcessing(false);
+      toast({
+        title: "Processing failed",
+        description: "Failed to load image. Please try another file.",
+        variant: "destructive"
+      });
+    };
+    
+    // Load image from file
+    img.src = URL.createObjectURL(uploadedFile);
+  };
+
+  const handleDownload = () => {
+    if (!result || !result.url) {
+      toast({
+        title: "No file to download",
+        description: "Please process an image first.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Create a temporary link element
+    const link = document.createElement('a');
+    link.href = result.url;
+    link.download = result.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Download started",
+      description: `Downloading ${result.name}`,
+      variant: "default"
+    });
   };
 
   // Format file size to KB or MB
@@ -157,7 +255,15 @@ const FileReducer = () => {
               
               <div className="bg-app-dark-accent border border-gray-700 rounded-lg overflow-hidden">
                 <div className="aspect-video bg-black flex items-center justify-center">
-                  <ImageIcon className="h-12 w-12 text-gray-600" />
+                  {result.url ? (
+                    <img 
+                      src={result.url} 
+                      alt="Reduced preview" 
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <ImageIcon className="h-12 w-12 text-gray-600" />
+                  )}
                 </div>
                 <div className="p-4">
                   <p className="font-medium mb-3">{result.name}</p>
@@ -177,7 +283,7 @@ const FileReducer = () => {
                     </div>
                   </div>
                   
-                  <Button className="w-full">
+                  <Button className="w-full" onClick={handleDownload}>
                     <Download className="mr-2 h-4 w-4" />
                     Download Reduced Image
                   </Button>
