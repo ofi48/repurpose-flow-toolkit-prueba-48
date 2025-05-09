@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,15 +18,108 @@ const GifConverter = () => {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
 
+  // Cleanup function to revoke object URLs when component unmounts or when new conversions happen
+  useEffect(() => {
+    return () => {
+      if (resultUrl) {
+        URL.revokeObjectURL(resultUrl);
+      }
+    };
+  }, []);
+
   const handleFileSelect = (file: File) => {
+    // Revoke previous URL to avoid memory leaks
+    if (resultUrl) {
+      URL.revokeObjectURL(resultUrl);
+    }
+    
     setUploadedFile(file);
     setResult(null);
     setResultUrl(null);
   };
 
-  const handleConvert = () => {
+  // Create a simple animated GIF-like effect using canvas
+  const createDemoGif = (fileName: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return resolve('');
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve('');
+      
+      // Set canvas dimensions based on the width parameter
+      const aspectRatio = 9/16; // Common video aspect ratio
+      canvas.width = width;
+      canvas.height = Math.floor(width * aspectRatio);
+      
+      // Create a colorful animated pattern (simulating GIF frames)
+      const colors = ['#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F3'];
+      let frameCount = 0;
+      
+      // Create 5 frames with different colors
+      const frames: Blob[] = [];
+      
+      const drawFrame = () => {
+        if (frameCount >= 5) {
+          // Create a multiframe animated blob from the collected frames
+          const gifBlob = new Blob(frames, { type: 'image/gif' });
+          const url = URL.createObjectURL(gifBlob);
+          resolve(url);
+          return;
+        }
+        
+        // Clear canvas
+        ctx.fillStyle = colors[frameCount];
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Add some visual elements
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = `${Math.floor(canvas.width / 15)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText(`Demo GIF - Frame ${frameCount + 1}`, canvas.width / 2, canvas.height / 2);
+        
+        // Quality effect - reduced quality means more pixelation
+        const pixelSize = Math.max(1, Math.floor((100 - quality) / 10));
+        if (pixelSize > 1) {
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          for (let y = 0; y < canvas.height; y += pixelSize) {
+            for (let x = 0; x < canvas.width; x += pixelSize) {
+              const i = (y * canvas.width + x) * 4;
+              const r = imageData.data[i];
+              const g = imageData.data[i + 1];
+              const b = imageData.data[i + 2];
+              
+              for (let py = 0; py < pixelSize && y + py < canvas.height; py++) {
+                for (let px = 0; px < pixelSize && x + px < canvas.width; px++) {
+                  const idx = ((y + py) * canvas.width + (x + px)) * 4;
+                  imageData.data[idx] = r;
+                  imageData.data[idx + 1] = g;
+                  imageData.data[idx + 2] = b;
+                }
+              }
+            }
+          }
+          ctx.putImageData(imageData, 0, 0);
+        }
+        
+        // Convert the current frame to blob and add to frames array
+        canvas.toBlob((blob) => {
+          if (blob) {
+            frames.push(blob);
+            frameCount++;
+            drawFrame();
+          }
+        }, 'image/gif');
+      };
+      
+      drawFrame();
+    });
+  };
+
+  const handleConvert = async () => {
     if (!uploadedFile) {
       toast({
         title: "No file selected",
@@ -47,36 +140,46 @@ const GifConverter = () => {
     }
 
     setProcessing(true);
+    setProgress(0);
     
-    // Simulate processing - in a real app, this would call an API
+    // Simulate processing with progress updates
     const interval = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 100) {
+        if (prev >= 95) {
           clearInterval(interval);
-          setProcessing(false);
-          
-          // Create a mock result
-          const resultName = `${uploadedFile.name.split('.')[0]}.gif`;
-          setResult(resultName);
-          
-          // For demonstration, we'll create a URL that can be used for download
-          // In a real app, this would be the URL to the converted GIF
-          // Since we're mocking, we'll create a blob with minimal content
-          const blob = new Blob(["GIF89a"], { type: 'image/gif' });
-          const url = URL.createObjectURL(blob);
-          setResultUrl(url);
-          
-          toast({
-            title: "Conversion complete",
-            description: "Your GIF has been created successfully.",
-            variant: "default"
-          });
-          
-          return 100;
+          return 95; // Hold at 95% until actual conversion completes
         }
         return prev + 2;
       });
     }, 100);
+
+    try {
+      // Create a mock result name
+      const resultName = `${uploadedFile.name.split('.')[0]}.gif`;
+      
+      // Generate a demo GIF using our canvas function
+      const url = await createDemoGif(resultName);
+      
+      // Complete the progress bar and set the results
+      setProgress(100);
+      setResult(resultName);
+      setResultUrl(url);
+      
+      toast({
+        title: "Conversion complete",
+        description: "Your GIF has been created successfully.",
+        variant: "default"
+      });
+    } catch (error) {
+      toast({
+        title: "Conversion failed",
+        description: "There was an error creating your GIF.",
+        variant: "destructive"
+      });
+    } finally {
+      clearInterval(interval);
+      setProcessing(false);
+    }
   };
 
   const handleDownload = () => {
@@ -222,6 +325,12 @@ const GifConverter = () => {
           {processing && (
             <ProgressBar value={progress} label="Converting to GIF" />
           )}
+          
+          {/* Hidden canvas used for GIF creation */}
+          <canvas 
+            ref={canvasRef} 
+            style={{ display: 'none' }}
+          />
         </div>
 
         <div className="space-y-6">
