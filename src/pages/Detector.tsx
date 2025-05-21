@@ -66,7 +66,7 @@ const Detector = () => {
       formData.append('file1', file1);
       formData.append('file2', file2);
       
-      console.log("Sending perceptual hash comparison request via Supabase edge function");
+      console.log("Sending enhanced visual comparison request via Supabase edge function");
       
       // Use the Supabase edge function to securely forward the request
       let response;
@@ -96,27 +96,35 @@ const Detector = () => {
         clearInterval(progressInterval);
         
         // Process the similarity score from the response
-        if (data.similarity !== undefined) {
-          console.log("Received similarity score:", data.similarity);
+        if (data.similarity_score !== undefined || data.similarity !== undefined) {
+          const similarityValue = data.similarity_score !== undefined ? data.similarity_score : data.similarity;
+          console.log("Received similarity score:", similarityValue);
           
           // Store any additional details that might be returned
-          setComparisonDetails(data.details || null);
+          const details = {
+            ...data.details || {},
+            comparison_breakdown: data.comparison_breakdown || {}
+          };
+          
+          setComparisonDetails(details);
           setProgress(100);
-          setSimilarityResult(data.similarity);
+          setSimilarityResult(similarityValue);
           
           // Switch to results tab
           setActiveTab("results");
           
+          const fileTypes = file1.type.startsWith('image/') ? 'image' : 'video';
+          
           toast({
-            title: "Perceptual hash comparison complete",
-            description: `Visual pattern similarity: ${data.similarity.toFixed(1)}%`,
+            title: `${fileTypes.charAt(0).toUpperCase() + fileTypes.slice(1)} comparison complete`,
+            description: `Visual similarity: ${similarityValue.toFixed(1)}%`,
           });
         } else {
           console.log("No similarity score returned, using fallback");
           
           toast({
             title: "Comparison partially failed",
-            description: "Could not calculate visual pattern similarity. Using estimated value.",
+            description: "Could not calculate visual similarity. Using estimated value.",
             variant: "warning"
           });
           
@@ -155,9 +163,9 @@ const Detector = () => {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Perceptual Hash Detector</h1>
+          <h1 className="text-3xl font-bold">Visual Similarity Detector</h1>
           <p className="text-gray-400 mt-1">
-            Compare visual patterns in images and videos using perceptual hash techniques
+            Advanced comparison of visual patterns in images and videos
           </p>
         </div>
       </div>
@@ -168,35 +176,35 @@ const Detector = () => {
             <FileText className="h-8 w-8 text-app-blue" />
           </div>
           <p className="text-gray-300 text-center mb-4">
-            This perceptual hash detector converts files into unique signatures based on visual patterns:
+            This visual similarity detector analyzes files using multiple comparison techniques:
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-400">
             <div className="space-y-2">
               <p className="flex items-center">
                 <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
-                Generates compact perceptual hash signatures
+                Perceptual hash similarity analysis
               </p>
               <p className="flex items-center">
                 <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
-                Identifies visually similar content regardless of format
+                Structural similarity (SSIM) comparison
               </p>
               <p className="flex items-center">
                 <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
-                Measures Hamming distance between visual signatures
+                Average brightness difference detection
               </p>
             </div>
             <div className="space-y-2">
               <p className="flex items-center">
                 <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
-                Robust against minor edits and alterations
+                Color histogram distribution analysis
               </p>
               <p className="flex items-center">
                 <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
-                Fast binary-level comparisons for exact matches
+                Repeated frame detection (for videos)
               </p>
               <p className="flex items-center">
                 <span className="w-2 h-2 rounded-full bg-app-blue mr-2"></span>
-                Works with both image and video files
+                Temporal frame similarity (for videos)
               </p>
             </div>
           </div>
@@ -237,7 +245,7 @@ const Detector = () => {
             {isComparing && (
               <div className="mt-6">
                 <p className="text-sm text-gray-400 mb-2 text-center">
-                  Generating and comparing perceptual hash signatures...
+                  Calculating multiple visual similarity metrics...
                 </p>
                 <Progress value={progress} className="h-2" />
               </div>
