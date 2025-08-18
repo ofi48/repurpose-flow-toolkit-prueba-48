@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -106,52 +106,8 @@ const VideoRepurposer = () => {
     deletePreset
   } = usePresets(defaultSettings);
   
-  // Create a ref for the hidden download link
-  const downloadLinkRef = useRef<HTMLAnchorElement | null>(null);
+  // Using ephemeral anchors for downloads; no pre-created hidden link is necessary.
 
-  // Create a bucket for videos if it doesn't exist (this would normally be done in a migration)
-  React.useEffect(() => {
-    const initStorage = async () => {
-      try {
-        // Check if the bucket already exists
-        const { data: buckets } = await supabase.storage.listBuckets();
-        const bucketExists = buckets?.some(bucket => bucket.name === 'videos');
-        
-        if (!bucketExists) {
-          const { error } = await supabase.storage.createBucket('videos', {
-            public: true,
-            fileSizeLimit: 50000000, // 50MB limit
-          });
-          
-          if (error) {
-            console.error('Error creating bucket:', error);
-          } else {
-            console.log('Videos bucket created');
-          }
-        }
-      } catch (error) {
-        console.error('Error initializing storage:', error);
-      }
-    };
-    
-    initStorage();
-  }, []);
-
-  // Initialize download link
-  React.useEffect(() => {
-    if (!downloadLinkRef.current) {
-      const link = document.createElement('a');
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      downloadLinkRef.current = link;
-    }
-    
-    return () => {
-      if (downloadLinkRef.current) {
-        document.body.removeChild(downloadLinkRef.current);
-      }
-    };
-  }, []);
 
   const handleStartProcess = async () => {
     try {
@@ -202,34 +158,19 @@ const VideoRepurposer = () => {
       });
       return;
     }
-    
     try {
-      if (!downloadLinkRef.current) {
-        const link = document.createElement('a');
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        downloadLinkRef.current = link;
-      }
-      
-      // Set link properties and click it
-      downloadLinkRef.current.href = fileUrl;
-      downloadLinkRef.current.download = fileName;
-      downloadLinkRef.current.click();
-      
+      const link = document.createElement('a');
+      link.href = fileUrl;
+      link.download = fileName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       console.log(`Download initiated: ${fileName}`);
-      
-      toast({
-        title: "Download started",
-        description: `Downloading ${fileName}`,
-        variant: "default"
-      });
+      toast({ title: "Download started", description: `Downloading ${fileName}`, variant: "default" });
     } catch (error) {
       console.error('Download error:', error);
-      toast({
-        title: "Download failed",
-        description: "There was an error downloading the file.",
-        variant: "destructive"
-      });
+      toast({ title: "Download failed", description: "There was an error downloading the file.", variant: "destructive" });
     }
   };
 
