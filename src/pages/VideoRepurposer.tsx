@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useVideoProcessing } from '@/hooks/useVideoProcessing';
+import { useVideoQueue } from '@/hooks/useVideoQueue';
 import { usePresets } from '@/hooks/usePresets';
 
 // Import refactored components
@@ -32,6 +33,18 @@ const VideoRepurposer = () => {
     processVideo,
     setResults
   } = useVideoProcessing();
+
+  // Video queue hook
+  const {
+    queue,
+    isProcessing: isQueueProcessing,
+    currentItem: currentQueueItem,
+    addVideosToQueue,
+    removeFromQueue,
+    clearQueue,
+    retryItem,
+    processQueue
+  } = useVideoQueue();
 
   // Extended default settings for the new parameters
   const defaultSettings = {
@@ -253,6 +266,19 @@ const VideoRepurposer = () => {
     deletePreset(presetToDelete);
   };
 
+  // Queue handlers
+  const handleFilesSelect = (files: File[]) => {
+    addVideosToQueue(files, settings, numCopies);
+  };
+
+  const handlePreviewQueueItem = (fileName: string, fileUrl: string) => {
+    handlePreview(fileName, fileUrl);
+  };
+
+  const handleDownloadQueueItem = (fileName: string, fileUrl: string) => {
+    handleDownload(fileName, fileUrl);
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -293,6 +319,17 @@ const VideoRepurposer = () => {
             settings={settings}
             updateSettingParam={updateSettingParam}
             updateWatermarkParam={updateWatermarkParam}
+            // Queue props
+            queue={queue}
+            isQueueProcessing={isQueueProcessing}
+            currentQueueItem={currentQueueItem}
+            onFilesSelect={handleFilesSelect}
+            onProcessQueue={processQueue}
+            onRemoveFromQueue={removeFromQueue}
+            onRetryQueueItem={retryItem}
+            onClearQueue={clearQueue}
+            onPreviewQueueItem={handlePreviewQueueItem}
+            onDownloadQueueItem={handleDownloadQueueItem}
           />
         </TabsContent>
 

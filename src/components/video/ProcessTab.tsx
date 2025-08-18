@@ -4,10 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import FileUpload from '@/components/FileUpload';
+import MultiFileUpload from './MultiFileUpload';
+import VideoQueue from './VideoQueue';
 import ProgressBar from '@/components/ProgressBar';
 import { VideoPresetSettings } from '@/types/preset';
 import VideoProcessingPanel from './VideoProcessingPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { QueueItem } from '@/hooks/useVideoQueue';
 
 interface ProcessTabProps {
   uploadedFile: File | null;
@@ -21,6 +24,17 @@ interface ProcessTabProps {
   settings: VideoPresetSettings;
   updateSettingParam: (param: keyof VideoPresetSettings, subParam: string, value: any) => void;
   updateWatermarkParam: (param: string, value: any) => void;
+  // Queue props
+  queue: QueueItem[];
+  isQueueProcessing: boolean;
+  currentQueueItem: string | null;
+  onFilesSelect: (files: File[]) => void;
+  onProcessQueue: () => void;
+  onRemoveFromQueue: (id: string) => void;
+  onRetryQueueItem: (id: string) => void;
+  onClearQueue: () => void;
+  onPreviewQueueItem?: (fileName: string, fileUrl: string) => void;
+  onDownloadQueueItem?: (fileName: string, fileUrl: string) => void;
 }
 
 const ProcessTab: React.FC<ProcessTabProps> = ({
@@ -34,70 +48,130 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
   handleStartProcess,
   settings,
   updateSettingParam,
-  updateWatermarkParam
+  updateWatermarkParam,
+  // Queue props
+  queue,
+  isQueueProcessing,
+  currentQueueItem,
+  onFilesSelect,
+  onProcessQueue,
+  onRemoveFromQueue,
+  onRetryQueueItem,
+  onClearQueue,
+  onPreviewQueueItem,
+  onDownloadQueueItem
 }) => {
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1">
+    <Tabs defaultValue="single" className="w-full">
+      <TabsList className="grid w-full grid-cols-2 mb-6">
+        <TabsTrigger value="single">Procesamiento Individual</TabsTrigger>
+        <TabsTrigger value="queue">Cola de Procesamiento</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="single" className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-1">
+            <div className="space-y-6">
+              <FileUpload 
+                onFileSelect={handleFileSelect}
+                acceptedFileTypes=".mp4,.mov,.avi,.webm"
+                label="Subir Video"
+              />
+
+              {uploadProgress > 0 && uploadProgress < 100 && (
+                <ProgressBar value={uploadProgress} label="Subiendo video..." />
+              )}
+
+              {uploadedFile && (
+                <div className="bg-card border p-3 rounded-md">
+                  <p className="text-sm font-medium">Subido: {uploadedFile.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Tamaño: {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <Label className="text-sm font-medium">Número de Variaciones</Label>
+                <Input 
+                  type="number" 
+                  min={1} 
+                  max={20} 
+                  value={numCopies} 
+                  onChange={(e) => setNumCopies(parseInt(e.target.value) || 3)}
+                />
+                
+                <Button 
+                  className="w-full" 
+                  onClick={handleStartProcess}
+                  disabled={processing || !uploadedFile}
+                  size="lg"
+                >
+                  {processing ? 'Procesando...' : 'Comenzar Procesamiento'}
+                </Button>
+                
+                {processing && (
+                  <ProgressBar value={progress} label="Procesando variaciones del video" />
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2">
+            <div className="w-full">
+              <VideoProcessingPanel 
+                settings={settings} 
+                updateSettingParam={updateSettingParam}
+                updateWatermarkParam={updateWatermarkParam}
+              />
+            </div>
+          </div>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="queue" className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-6">
-            <FileUpload 
-              onFileSelect={handleFileSelect}
+            <MultiFileUpload
+              onFilesSelect={onFilesSelect}
               acceptedFileTypes=".mp4,.mov,.avi,.webm"
-              label="Upload Video"
+              label="Subir Videos a la Cola"
             />
 
-            {uploadProgress > 0 && uploadProgress < 100 && (
-              <ProgressBar value={uploadProgress} label="Uploading video..." />
-            )}
-
-            {uploadedFile && (
-              <div className="bg-app-dark-accent p-3 rounded-md">
-                <p className="text-sm font-medium">Uploaded: {uploadedFile.name}</p>
-                <p className="text-xs text-gray-400">
-                  Size: {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
-                </p>
-              </div>
-            )}
-
             <div className="space-y-4">
-              <Label className="text-sm font-medium">Number of Variants</Label>
+              <Label className="text-sm font-medium">Número de Variaciones por Video</Label>
               <Input 
                 type="number" 
                 min={1} 
                 max={20} 
                 value={numCopies} 
                 onChange={(e) => setNumCopies(parseInt(e.target.value) || 3)}
-                className="bg-app-dark-accent border-gray-700"
               />
-              
-              <Button 
-                className="w-full" 
-                onClick={handleStartProcess}
-                disabled={processing || !uploadedFile}
-                size="lg"
-              >
-                {processing ? 'Processing...' : 'Start Processing'}
-              </Button>
-              
-              {processing && (
-                <ProgressBar value={progress} label="Processing video variants" />
-              )}
             </div>
-          </div>
-        </div>
 
-        <div className="lg:col-span-2">
-          <div className="w-full">
             <VideoProcessingPanel 
               settings={settings} 
               updateSettingParam={updateSettingParam}
               updateWatermarkParam={updateWatermarkParam}
             />
           </div>
+
+          <div>
+            <VideoQueue
+              queue={queue}
+              isProcessing={isQueueProcessing}
+              currentItem={currentQueueItem}
+              onProcessQueue={onProcessQueue}
+              onRemoveItem={onRemoveFromQueue}
+              onRetryItem={onRetryQueueItem}
+              onClearQueue={onClearQueue}
+              onPreview={onPreviewQueueItem}
+              onDownload={onDownloadQueueItem}
+            />
+          </div>
         </div>
-      </div>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 };
 
