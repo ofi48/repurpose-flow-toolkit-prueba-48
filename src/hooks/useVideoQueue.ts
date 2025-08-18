@@ -37,8 +37,8 @@ export const useVideoQueue = () => {
     setQueue(prev => [...prev, ...newItems]);
     
     toast({
-      title: "Videos añadidos a la cola",
-      description: `${files.length} video${files.length > 1 ? 's' : ''} añadido${files.length > 1 ? 's' : ''} a la cola de procesamiento.`,
+      title: "Videos added to queue",
+      description: `${files.length} video${files.length > 1 ? 's' : ''} added to the processing queue.`,
       variant: "default"
     });
 
@@ -81,7 +81,7 @@ export const useVideoQueue = () => {
 
   const processVideo = async (item: QueueItem) => {
     if (!item.file || !item.settings) {
-      throw new Error('Datos de video incompletos');
+      throw new Error('Incomplete video data');
     }
 
     const formData = new FormData();
@@ -102,18 +102,18 @@ export const useVideoQueue = () => {
       
       if (!contentType || !contentType.includes('application/json')) {
         const textResponse = await response.text();
-        throw new Error(`El servidor devolvió un formato inesperado. Content-Type: ${contentType || 'undefined'}`);
+        throw new Error(`Server returned unexpected format. Content-Type: ${contentType || 'undefined'}`);
       }
 
       let responseData;
       try {
         responseData = await response.json();
       } catch (jsonError) {
-        throw new Error('Error al procesar la respuesta del servidor.');
+        throw new Error('Error processing server response.');
       }
 
       if (!response.ok) {
-        const errorMsg = responseData.error || "Error en el procesamiento";
+        const errorMsg = responseData.error || "Processing error";
         throw new Error(errorMsg);
       }
 
@@ -161,22 +161,22 @@ export const useVideoQueue = () => {
         });
 
         toast({
-          title: "Video procesado",
-          description: `${item.fileName} se ha procesado correctamente.`,
+          title: "Video processed",
+          description: `${item.fileName} has been processed successfully.`,
           variant: "default"
         });
 
       } catch (error) {
-        console.error(`Error procesando ${item.fileName}:`, error);
+        console.error(`Error processing ${item.fileName}:`, error);
         updateItemStatus(item.id, { 
           status: 'error', 
-          error: error.message || 'Error desconocido',
+          error: error.message || 'Unknown error',
           progress: 0 
         });
 
         toast({
-          title: "Error en el procesamiento",
-          description: `Error al procesar ${item.fileName}: ${error.message}`,
+          title: "Processing error",
+          description: `Error processing ${item.fileName}: ${error.message}`,
           variant: "destructive"
         });
       }
@@ -188,8 +188,8 @@ export const useVideoQueue = () => {
     const completedCount = queue.filter(item => item.status === 'completed').length;
     if (completedCount > 0) {
       toast({
-        title: "Cola procesada",
-        description: `Se han procesado ${completedCount} videos correctamente.`,
+        title: "Queue processed",
+        description: `${completedCount} videos have been processed successfully.`,
         variant: "default"
       });
     }

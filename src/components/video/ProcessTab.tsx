@@ -64,8 +64,8 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
   return (
     <Tabs defaultValue="single" className="w-full">
       <TabsList className="grid w-full grid-cols-2 mb-6">
-        <TabsTrigger value="single">Procesamiento Individual</TabsTrigger>
-        <TabsTrigger value="queue">Cola de Procesamiento</TabsTrigger>
+        <TabsTrigger value="single">Single Processing</TabsTrigger>
+        <TabsTrigger value="queue">Batch Processing</TabsTrigger>
       </TabsList>
 
       <TabsContent value="single" className="space-y-6">
@@ -75,24 +75,24 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
               <FileUpload 
                 onFileSelect={handleFileSelect}
                 acceptedFileTypes=".mp4,.mov,.avi,.webm"
-                label="Subir Video"
+                label="Upload Video"
               />
 
               {uploadProgress > 0 && uploadProgress < 100 && (
-                <ProgressBar value={uploadProgress} label="Subiendo video..." />
+                <ProgressBar value={uploadProgress} label="Uploading video..." />
               )}
 
               {uploadedFile && (
                 <div className="bg-card border p-3 rounded-md">
-                  <p className="text-sm font-medium">Subido: {uploadedFile.name}</p>
+                  <p className="text-sm font-medium">Uploaded: {uploadedFile.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    Tamaño: {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
+                    Size: {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
                   </p>
                 </div>
               )}
 
               <div className="space-y-4">
-                <Label className="text-sm font-medium">Número de Variaciones</Label>
+                <Label className="text-sm font-medium">Number of Variations</Label>
                 <Input 
                   type="number" 
                   min={1} 
@@ -107,11 +107,11 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
                   disabled={processing || !uploadedFile}
                   size="lg"
                 >
-                  {processing ? 'Procesando...' : 'Comenzar Procesamiento'}
+                  {processing ? 'Processing...' : 'Start Processing'}
                 </Button>
                 
                 {processing && (
-                  <ProgressBar value={progress} label="Procesando variaciones del video" />
+                  <ProgressBar value={progress} label="Processing video variations" />
                 )}
               </div>
             </div>
@@ -135,11 +135,11 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
             <MultiFileUpload
               onFilesSelect={onFilesSelect}
               acceptedFileTypes=".mp4,.mov,.avi,.webm"
-              label="Subir Videos a la Cola"
+              label="Upload Videos to Queue"
             />
 
             <div className="space-y-4">
-              <Label className="text-sm font-medium">Número de Variaciones por Video</Label>
+              <Label className="text-sm font-medium">Number of Variations per Video</Label>
               <Input 
                 type="number" 
                 min={1} 

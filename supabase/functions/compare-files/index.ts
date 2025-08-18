@@ -435,9 +435,7 @@ async function handleFileComparison(req: Request): Promise<Response> {
           perceptual_hash_similarity: 50,
           ssim_score: 50,
           average_brightness_difference: 50,
-          color_histogram_similarity: 50,
-          repeated_frame_score: bothVideos ? 50 : null,
-          temporal_frame_similarity: bothVideos ? 50 : null
+          color_histogram_similarity: 50
         },
         error: error.message || "An error occurred while comparing files.",
         details: {

@@ -55,11 +55,11 @@ const getStatusIcon = (status: QueueItem['status'], isCurrentItem: boolean) => {
 
 const getStatusText = (status: QueueItem['status']) => {
   switch (status) {
-    case 'waiting': return 'En espera';
-    case 'processing': return 'Procesando';
-    case 'completed': return 'Completado';
+    case 'waiting': return 'Waiting';
+    case 'processing': return 'Processing';
+    case 'completed': return 'Completed';
     case 'error': return 'Error';
-    default: return 'Desconocido';
+    default: return 'Unknown';
   }
 };
 
@@ -84,8 +84,8 @@ const VideoQueue: React.FC<VideoQueueProps> = ({
         <CardContent className="p-6 text-center">
           <div className="text-muted-foreground">
             <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>No hay videos en la cola</p>
-            <p className="text-sm">Sube videos para comenzar el procesamiento</p>
+            <p>No videos in queue</p>
+            <p className="text-sm">Upload videos to start processing</p>
           </div>
         </CardContent>
       </Card>
@@ -96,7 +96,7 @@ const VideoQueue: React.FC<VideoQueueProps> = ({
     <Card className="w-full">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Cola de Procesamiento</CardTitle>
+          <CardTitle className="text-lg">Processing Queue</CardTitle>
           <div className="flex gap-2">
             <Button
               onClick={onProcessQueue}
@@ -105,7 +105,7 @@ const VideoQueue: React.FC<VideoQueueProps> = ({
               className="h-8"
             >
               <Play className="h-4 w-4 mr-1" />
-              {isProcessing ? 'Procesando...' : 'Procesar Cola'}
+              {isProcessing ? 'Processing...' : 'Process Queue'}
             </Button>
             <Button
               variant="outline"
@@ -115,16 +115,16 @@ const VideoQueue: React.FC<VideoQueueProps> = ({
               className="h-8"
             >
               <Trash2 className="h-4 w-4 mr-1" />
-              Limpiar
+              Clear
             </Button>
           </div>
         </div>
         
         <div className="flex gap-4 text-sm text-muted-foreground">
           <span>Total: {queue.length}</span>
-          <span>En espera: {waitingCount}</span>
-          <span>Completados: {completedCount}</span>
-          {errorCount > 0 && <span className="text-destructive">Errores: {errorCount}</span>}
+          <span>Waiting: {waitingCount}</span>
+          <span>Completed: {completedCount}</span>
+          {errorCount > 0 && <span className="text-destructive">Errors: {errorCount}</span>}
         </div>
       </CardHeader>
 
@@ -191,7 +191,7 @@ const VideoQueue: React.FC<VideoQueueProps> = ({
               <div className="mt-2 pt-2 border-t border-border">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">
-                    {item.results.length} variación{item.results.length > 1 ? 'es' : ''} generada{item.results.length > 1 ? 's' : ''}
+                    {item.results.length} variation{item.results.length > 1 ? 's' : ''} generated
                   </p>
                   <div className="flex gap-1">
                     {onPreview && item.results[0] && (
@@ -202,7 +202,7 @@ const VideoQueue: React.FC<VideoQueueProps> = ({
                         className="h-6 px-2 text-xs"
                       >
                         <Eye className="h-3 w-3 mr-1" />
-                        Vista previa
+                        Preview
                       </Button>
                     )}
                     {onDownload && item.results[0] && (
@@ -213,7 +213,7 @@ const VideoQueue: React.FC<VideoQueueProps> = ({
                         className="h-6 px-2 text-xs"
                       >
                         <Download className="h-3 w-3 mr-1" />
-                        Descargar
+                        Download
                       </Button>
                     )}
                   </div>
