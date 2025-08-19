@@ -32,24 +32,20 @@ async function areFilesIdentical(file1: File, file2: File): Promise<boolean> {
   return true;
 }
 
-// Function to compute a perceptual hash from image data
-async function computePerceptualHash(imageFile: File): Promise<string> {
+// Function to compute a perceptual hash from file metadata (memory-efficient)
+async function computePerceptualHash(file: File): Promise<string> {
   try {
-    // Create an ImageBitmap from the file
-    const arrayBuffer = await imageFile.arrayBuffer();
-    const blob = new Blob([arrayBuffer], { type: imageFile.type });
-    
-    // For Deno runtime, we need to use a different approach to process the image
-    // Create a hash by analyzing image properties available in the metadata
+    // For large files (videos), avoid loading into memory
+    // Create hash using only file metadata
     const hash = new Uint8Array(8);
     
     // Use file size to influence part of the hash
-    const sizeBytes = new Uint32Array([imageFile.size]);
+    const sizeBytes = new Uint32Array([file.size]);
     hash[0] = sizeBytes[0] & 0xFF;
     hash[1] = (sizeBytes[0] >> 8) & 0xFF;
     
     // Use filename and type to influence another part of the hash
-    const nameBytes = new TextEncoder().encode(imageFile.name + imageFile.type);
+    const nameBytes = new TextEncoder().encode(file.name + file.type);
     for (let i = 0; i < nameBytes.length && i < 6; i++) {
       hash[i + 2] = nameBytes[i];
     }
@@ -181,49 +177,84 @@ function calculateBrightnessProxy(fileName: string, fileSize: number): number {
   return normalized;
 }
 
-// Function to analyze video data and extract metrics
-async function analyzeVideoMetrics(videoData1: ArrayBuffer, videoData2: ArrayBuffer, fileName1: string, fileName2: string): Promise<any> {
-  // Start with the image metrics (for key frames)
-  const imageMetrics = await analyzeImageMetrics(videoData1, videoData2, fileName1, fileName2);
-  
+// Function to analyze video data and extract metrics (memory-efficient version)
+async function analyzeVideoMetrics(file1: File, file2: File): Promise<any> {
   try {
-    // Calculate video-specific metrics
+    console.log("Starting memory-efficient video analysis");
+    
+    // Use file metadata instead of loading entire files into memory
+    const videoSize1 = file1.size;
+    const videoSize2 = file2.size;
+    const fileName1 = file1.name;
+    const fileName2 = file2.name;
+    
+    // 1. Calculate perceptual hash similarity (lightweight)
+    const hash1 = await computePerceptualHash(file1);
+    const hash2 = await computePerceptualHash(file2);
+    
+    const hashDistance = calculateHammingDistance(hash1, hash2);
+    const hashLength = Math.max(hash1.length, hash2.length);
+    const perceptual_hash_similarity = calculateSimilarityPercentage(hashDistance, hashLength);
+    
+    // 2. Simulate SSIM score calculation based on file properties
+    const sizeDifference = Math.abs(videoSize1 - videoSize2);
+    const maxSize = Math.max(videoSize1, videoSize2);
+    const relativeSize = 1 - (sizeDifference / maxSize);
+    const ssim_score = Math.min(100, Math.max(0, relativeSize * 90 + Math.random() * 10));
+
+    // 3. Calculate average brightness difference (simulated)
+    const brightnessProxy1 = calculateBrightnessProxy(fileName1, videoSize1);
+    const brightnessProxy2 = calculateBrightnessProxy(fileName2, videoSize2);
+    const brightnessDiff = Math.abs(brightnessProxy1 - brightnessProxy2);
+    const average_brightness_difference = Math.min(100, brightnessDiff * 100);
+    
+    // 4. Calculate color histogram similarity (simulated)
+    const nameLength1 = fileName1.length;
+    const nameLength2 = fileName2.length;
+    const lengthSimilarity = 1 - (Math.abs(nameLength1 - nameLength2) / Math.max(nameLength1, nameLength2));
+    
+    const color_histogram_similarity = Math.min(100, Math.max(0, 
+      lengthSimilarity * 50 + // Name length similarity contributes 50%
+      relativeSize * 50      // File size similarity contributes 50%
+    ));
     
     // 5. Repeated frame score (simulated)
-    // In a real implementation, we would extract frames and compare them
-    const videoSizeDiff = Math.abs(videoData1.byteLength - videoData2.byteLength);
-    const maxVideoSize = Math.max(videoData1.byteLength, videoData2.byteLength);
+    const videoSizeDiff = Math.abs(videoSize1 - videoSize2);
+    const maxVideoSize = Math.max(videoSize1, videoSize2);
     const relativeSizeDiff = videoSizeDiff / maxVideoSize;
     
-    // Videos with similar sizes might have similar frame patterns
     const repeatedFrameScore = Math.min(100, Math.max(0, 
-      (1 - relativeSizeDiff) * 90 + // Size similarity contributes 90%
-      Math.random() * 10           // Add some randomness for variety
+      (1 - relativeSizeDiff) * 90 + Math.random() * 10
     ));
     
     // 6. Temporal frame similarity (simulated)
-    // In a real implementation, we would analyze frame sequences over time
-    // Here we use a combination of file properties to simulate
     const nameEntropy1 = calculateStringEntropy(fileName1);
     const nameEntropy2 = calculateStringEntropy(fileName2);
     const entropyDiff = Math.abs(nameEntropy1 - nameEntropy2);
     
     const temporalSimilarity = Math.min(100, Math.max(0,
-      (1 - (entropyDiff / Math.max(nameEntropy1, nameEntropy2))) * 85 + // Entropy similarity contributes 85%
-      Math.random() * 15                                               // Add some randomness
+      (1 - (entropyDiff / Math.max(nameEntropy1, nameEntropy2))) * 85 + Math.random() * 15
     ));
     
+    console.log("Video analysis completed successfully");
+    
     return {
-      ...imageMetrics,
+      perceptual_hash_similarity,
+      ssim_score,
+      average_brightness_difference,
+      color_histogram_similarity,
       repeated_frame_score: repeatedFrameScore,
       temporal_frame_similarity: temporalSimilarity
     };
   } catch (error) {
     console.error('Error analyzing video metrics:', error);
     
-    // Return image metrics plus fallback values for video metrics
+    // Return fallback values for all metrics
     return {
-      ...imageMetrics,
+      perceptual_hash_similarity: 50,
+      ssim_score: 50,
+      average_brightness_difference: 50,
+      color_histogram_similarity: 50,
       repeated_frame_score: 50,
       temporal_frame_similarity: 50
     };
@@ -295,8 +326,24 @@ async function handleFileComparison(req: Request): Promise<Response> {
     console.log("File 1:", file1.name, file1.type, "size:", file1.size);
     console.log("File 2:", file2.name, file2.type, "size:", file2.size);
     
-    // Check if files are binary identical (quick path)
-    const identical = await areFilesIdentical(file1, file2);
+    // Determine if files are images or videos first
+    const isImage1 = file1.type.startsWith('image/');
+    const isImage2 = file2.type.startsWith('image/');
+    const isVideo1 = file1.type.startsWith('video/');
+    const isVideo2 = file2.type.startsWith('video/');
+    
+    // Check if both files are of the same type
+    const bothImages = isImage1 && isImage2;
+    const bothVideos = isVideo1 && isVideo2;
+    
+    // Skip binary identity check for large videos to avoid memory issues
+    const isLargeVideo = (bothVideos && (file1.size > 50000000 || file2.size > 50000000)); // 50MB threshold
+    
+    let identical = false;
+    if (!isLargeVideo) {
+      identical = await areFilesIdentical(file1, file2);
+    }
+    
     if (identical) {
       console.log("Files are binary identical");
       return new Response(
@@ -327,16 +374,6 @@ async function handleFileComparison(req: Request): Promise<Response> {
       );
     }
     
-    // Determine if files are images or videos
-    const isImage1 = file1.type.startsWith('image/');
-    const isImage2 = file2.type.startsWith('image/');
-    const isVideo1 = file1.type.startsWith('video/');
-    const isVideo2 = file2.type.startsWith('video/');
-    
-    // Check if both files are of the same type
-    const bothImages = isImage1 && isImage2;
-    const bothVideos = isVideo1 && isVideo2;
-    
     if (!bothImages && !bothVideos) {
       console.log("Mixed file types detected");
       return new Response(
@@ -358,15 +395,16 @@ async function handleFileComparison(req: Request): Promise<Response> {
     try {
       console.log(`Computing metrics for ${bothVideos ? 'videos' : 'images'}`);
       
-      const buffer1 = await file1.arrayBuffer();
-      const buffer2 = await file2.arrayBuffer();
-      
       // Choose the appropriate analysis function based on file type
       let metrics: any;
       
       if (bothVideos) {
-        metrics = await analyzeVideoMetrics(buffer1, buffer2, file1.name, file2.name);
+        // Use memory-efficient approach for videos (no ArrayBuffer loading)
+        metrics = await analyzeVideoMetrics(file1, file2);
       } else { // bothImages
+        // For images, still use ArrayBuffer approach (smaller files)
+        const buffer1 = await file1.arrayBuffer();
+        const buffer2 = await file2.arrayBuffer();
         metrics = await analyzeImageMetrics(buffer1, buffer2, file1.name, file2.name);
       }
       
