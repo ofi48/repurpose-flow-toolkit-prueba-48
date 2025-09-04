@@ -140,25 +140,123 @@ When processing N copies:
 - Full-screen viewing capability
 - Direct download from preview interface
 
+## Video Processing Technology Stack
+
+### FFmpeg Integration
+The Video Repurposer leverages FFmpeg, the industry-standard multimedia framework, for comprehensive video manipulation:
+
+#### Core FFmpeg Capabilities
+- **Video Encoding/Decoding**: Handles multiple video formats (MP4, AVI, MOV, WebM, etc.)
+- **Filter Chain Processing**: Applies complex video filters in a single pass for optimal performance
+- **Hardware Acceleration**: Utilizes GPU acceleration when available for faster processing
+- **Codec Management**: Supports H.264, H.265, VP9, and other modern video codecs
+
+#### FFmpeg Filter Pipeline
+- **Complex Filter Graphs**: Constructs intricate filter chains combining multiple effects
+- **Real-time Processing**: Streams video data through filter pipeline without intermediate files
+- **Memory Optimization**: Efficient buffer management for large video files
+- **Quality Preservation**: Maintains video quality while applying transformations
+
+### WebCodecs API Integration
+Modern browser-based video processing using the WebCodecs API:
+
+#### Client-Side Processing
+- **Hardware Acceleration**: Leverages browser's native video encoding/decoding capabilities
+- **Real-time Preview**: Instant preview of processing effects without server round-trips
+- **Memory Efficiency**: Direct GPU memory access for faster processing
+- **Format Support**: Native support for modern web video formats
+
+#### Progressive Enhancement
+- **Fallback Strategy**: Graceful degradation to server-side processing when WebCodecs unavailable
+- **Browser Compatibility**: Automatic detection of WebCodecs support
+- **Performance Optimization**: Chooses optimal processing method based on file size and complexity
+
+## Video Processing Pipeline Architecture
+
+### Input Analysis Phase
+1. **File Validation**: Verifies video format, codec, and integrity
+2. **Metadata Extraction**: Analyzes resolution, frame rate, duration, and audio properties
+3. **Resource Assessment**: Determines optimal processing method (client vs server)
+4. **Parameter Validation**: Ensures processing parameters are within acceptable ranges
+
+### Processing Engine Workflow
+1. **Parameter Generation**: Creates randomized values within user-defined ranges
+2. **Filter Construction**: Builds FFmpeg filter strings based on selected parameters
+3. **Pipeline Assembly**: Constructs processing pipeline optimizing for performance
+4. **Quality Control**: Monitors output quality and adjusts parameters if needed
+
+### Transformation Process
+The system applies video transformations through a sophisticated multi-stage pipeline:
+
+#### Stage 1: Color and Visual Enhancement
+- **Color Space Conversion**: Ensures consistent color representation across processing
+- **Gamma Correction**: Applies gamma curves for optimal brightness distribution
+- **Saturation/Contrast**: Modifies color intensity and contrast levels
+- **Brightness Adjustment**: Fine-tunes overall video brightness
+
+#### Stage 2: Visual Effects Application
+- **Vignette Generation**: Creates edge darkening effects using radial gradients
+- **Noise Addition**: Applies film grain simulation for vintage aesthetics
+- **Pixel Manipulation**: Implements subtle pixel shifts for uniqueness
+- **Filter Blending**: Combines multiple effects seamlessly
+
+#### Stage 3: Geometric Transformations
+- **Scaling Operations**: Resizes video maintaining aspect ratio or applying zoom
+- **Rotation Matrix**: Applies rotation transforms with anti-aliasing
+- **Flip Operations**: Implements horizontal/vertical mirroring
+- **Crop/Trim**: Precise temporal and spatial video trimming
+
+#### Stage 4: Audio Processing
+- **Volume Normalization**: Ensures consistent audio levels across variants
+- **Waveform Manipulation**: Applies subtle audio modifications
+- **Sync Preservation**: Maintains audio-video synchronization
+- **Quality Optimization**: Balances audio quality with file size
+
+### Output Generation and Optimization
+1. **Encoding Configuration**: Selects optimal codec settings for quality/size balance
+2. **Multi-pass Encoding**: Uses multiple passes for superior quality when needed
+3. **Format Conversion**: Outputs in web-optimized formats
+4. **Metadata Injection**: Adds processing metadata and watermarks if specified
+
+## Processing Objectives and Goals
+
+### Primary Objectives
+1. **Content Uniqueness**: Generate visually distinct variants that avoid content detection systems
+2. **Quality Preservation**: Maintain acceptable visual quality while applying transformations
+3. **Processing Speed**: Optimize processing time through efficient algorithms and hardware acceleration
+4. **Scalability**: Handle multiple files and large video sizes efficiently
+
+### Technical Goals
+- **Deterministic Randomization**: Ensure reproducible results with consistent parameter sets
+- **Memory Efficiency**: Process large videos without excessive memory consumption
+- **Error Recovery**: Robust handling of corrupted or problematic video files
+- **Format Compatibility**: Support wide range of input and output video formats
+
+### Quality Assurance
+- **Visual Similarity**: Maintain recognizable content while ensuring uniqueness
+- **Technical Integrity**: Preserve video playback compatibility across devices
+- **Performance Monitoring**: Track processing times and optimize bottlenecks
+- **User Experience**: Provide clear feedback and progress indication
+
 ## Technical Processing Backend
 
 ### Server Integration
-- Railway-hosted video processing server
-- RESTful API communication
-- FormData-based file uploads
-- JSON response handling
+- Railway-hosted video processing server powered by FFmpeg
+- RESTful API communication with multipart form data
+- Streaming file uploads with progress tracking
+- JSON response handling with detailed processing metrics
 
 ### Error Handling
-- Comprehensive error catching and reporting
-- User-friendly error messages
-- Automatic retry mechanisms
-- Processing status tracking
+- Comprehensive error catching and reporting at each pipeline stage
+- User-friendly error messages with technical details
+- Automatic retry mechanisms for transient failures
+- Processing status tracking with detailed error logs
 
 ### Progress Tracking
-- Real-time processing progress (0-100%)
-- Visual progress bars
-- Status updates throughout processing pipeline
-- Completion notifications
+- Real-time processing progress (0-100%) with stage indicators
+- Visual progress bars with estimated completion times
+- Status updates throughout processing pipeline stages
+- Completion notifications with processing statistics
 
 ## Use Cases and Applications
 
