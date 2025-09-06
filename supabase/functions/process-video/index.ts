@@ -29,7 +29,7 @@ async function handleVideoProcessing(req: Request): Promise<Response> {
     let railwayUrl = "https://repurpose-flow-toolkit-prueba-48-production.up.railway.app/process-video";
     
     if (isComparison) {
-      // Use the comparison-specific endpoint if available
+      // Use the comparison-specific endpoint - first try compare-media, fallback to compare-files
       railwayUrl = "https://repurpose-flow-toolkit-prueba-48-production.up.railway.app/compare-media";
       console.log("Using comparison-specific endpoint");
     }

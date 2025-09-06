@@ -1,1 +1,7 @@
 project_id = "ekrvkgvojajchfytjvzk"
+
+[functions.process-video]
+verify_jwt = false
+
+[functions.compare-files] 
+verify_jwt = false

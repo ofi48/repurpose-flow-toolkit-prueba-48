@@ -1,8 +1,9 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Video, Image as ImageIcon, FileImage, Search, Layers } from "lucide-react";
+import { Video, Image as ImageIcon, FileImage, Search, Layers, Settings } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
+import { TestEndpoints } from '@/components/TestEndpoints';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -49,6 +50,13 @@ const Dashboard = () => {
       icon: Layers,
       path: "/file-reducer",
       color: "bg-emerald-500"
+    },
+    {
+      title: "Configuración",
+      description: "Probar conexión con endpoints de Railway",
+      icon: Settings,
+      path: "/test-endpoints",
+      color: "bg-gray-500"
     }
   ];
 
@@ -83,6 +91,12 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Test Endpoints Section */}
+      <div className="mt-12">
+        <h2 className="text-2xl font-bold mb-4">Prueba de Conectividad</h2>
+        <TestEndpoints />
       </div>
     </div>
   );
