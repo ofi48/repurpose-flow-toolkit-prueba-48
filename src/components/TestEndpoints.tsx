@@ -14,13 +14,21 @@ export const TestEndpoints = () => {
 
   const testProcessVideoEndpoint = async () => {
     try {
+      // First test basic server connectivity
+      console.log('Testing server connectivity...');
+      
       // Create a minimal test file
       const testFile = new File(['test'], 'test.mp4', { type: 'video/mp4' });
       const formData = new FormData();
       formData.append('video', testFile);
-      formData.append('settings', JSON.stringify({ quality: 'medium' }));
+      formData.append('settings', JSON.stringify({ 
+        videoBitrate: { min: 1000, max: 2000, enabled: true },
+        audioBitrate: { min: 128, max: 192, enabled: false },
+        frameRate: { min: 30, max: 30, enabled: false }
+      }));
       formData.append('numCopies', '1');
 
+      console.log('Sending request to Railway server...');
       const response = await fetch('https://video-server-production-a86c.up.railway.app/process-video', {
         method: 'POST',
         body: formData,
@@ -29,30 +37,46 @@ export const TestEndpoints = () => {
         }
       });
 
+      console.log('Response received:', response.status, response.statusText);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
       const contentType = response.headers.get('content-type');
       let result;
       
       if (contentType && contentType.includes('application/json')) {
         result = await response.json();
+        console.log('JSON response:', result);
       } else {
         const text = await response.text();
+        console.log('Non-JSON response:', text);
         result = { error: `Non-JSON response: ${text.substring(0, 100)}` };
+      }
+
+      let message = '';
+      if (response.ok) {
+        message = 'Servidor funcionando correctamente';
+      } else {
+        message = `Error ${response.status}: ${result.error || result.message || 'Error desconocido'}`;
+        if (response.status === 500) {
+          message += ' - Posible problema con FFmpeg o configuración del servidor';
+        }
       }
 
       setResults(prev => ({
         ...prev,
         processVideo: {
           status: response.ok ? 'success' : 'error',
-          message: response.ok ? 'Endpoint is responding' : result.error || 'Error response'
+          message: message
         }
       }));
 
     } catch (error) {
+      console.error('Connection error:', error);
       setResults(prev => ({
         ...prev,
         processVideo: {
           status: 'error',
-          message: error.message || 'Connection failed'
+          message: `Conexión fallida: ${error.message}`
         }
       }));
     }
@@ -187,8 +211,13 @@ export const TestEndpoints = () => {
         </div>
 
         <div className="text-xs text-muted-foreground bg-muted p-3 rounded">
-          <strong>Información:</strong> Esta prueba envía archivos mínimos para verificar la conectividad. 
-          Los endpoints deben responder con JSON válido. FFmpeg se probará automáticamente cuando proceses archivos reales.
+          <strong>Diagnóstico:</strong> Si /process-video falla con error 500, puede ser que:
+          <ul className="mt-1 ml-4 list-disc">
+            <li>FFmpeg no esté instalado en el servidor</li>
+            <li>El servidor nuevo necesite configuración adicional</li>
+            <li>Los endpoints no estén implementados correctamente</li>
+          </ul>
+          Revisa los logs de la consola para más detalles.
         </div>
       </CardContent>
     </Card>
