@@ -3,9 +3,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useVideoProcessing } from '@/hooks/useVideoProcessing';
-import { useVideoQueue } from '@/hooks/useVideoQueue';
+import { useVideoQueueContext } from '@/contexts/VideoQueueContext';
 import { usePresets } from '@/hooks/usePresets';
-import { useGlobalResults } from '@/hooks/useGlobalResults';
 
 // Import refactored components
 import ProcessTab from '@/components/video/ProcessTab';
@@ -35,14 +34,7 @@ const VideoRepurposer = () => {
     setResults
   } = useVideoProcessing();
 
-  // Global results management
-  const {
-    globalResults,
-    addResults,
-    clearResults
-  } = useGlobalResults();
-
-  // Video queue hook
+  // Use global video queue context
   const {
     queue,
     isProcessing: isQueueProcessing,
@@ -51,8 +43,11 @@ const VideoRepurposer = () => {
     removeFromQueue,
     clearQueue,
     retryItem,
-    processQueue
-  } = useVideoQueue();
+    processQueue,
+    globalResults,
+    addResults,
+    clearResults
+  } = useVideoQueueContext();
 
   // Simplified default settings - only proven working parameters
   const defaultSettings = {
