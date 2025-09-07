@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { VideoPresetSettings } from '@/types/preset';
 import { useToast } from "@/hooks/use-toast";
 import { generateProcessingParameters, processVideoOnServer } from '@/utils/videoProcessing';
+import { useGlobalResults } from '@/hooks/useGlobalResults';
 
 export interface QueueItem {
   id: string;
@@ -21,6 +22,7 @@ export const useVideoQueue = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentItem, setCurrentItem] = useState<string | null>(null);
   const { toast } = useToast();
+  const { addResults } = useGlobalResults();
 
   const addVideosToQueue = useCallback((files: File[], settings: VideoPresetSettings, numCopies: number) => {
     const newItems: QueueItem[] = files.map(file => ({
@@ -178,6 +180,9 @@ export const useVideoQueue = () => {
           progress: 100, 
           results 
         });
+
+        // Add to global results
+        addResults(results, 'batch');
 
         toast({
           title: "Video processed",

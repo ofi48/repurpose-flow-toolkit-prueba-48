@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useVideoProcessing } from '@/hooks/useVideoProcessing';
 import { useVideoQueue } from '@/hooks/useVideoQueue';
 import { usePresets } from '@/hooks/usePresets';
+import { useGlobalResults } from '@/hooks/useGlobalResults';
 
 // Import refactored components
 import ProcessTab from '@/components/video/ProcessTab';
@@ -34,6 +35,13 @@ const VideoRepurposer = () => {
     setResults
   } = useVideoProcessing();
 
+  // Global results management
+  const {
+    globalResults,
+    addResults,
+    clearResults
+  } = useGlobalResults();
+
   // Video queue hook
   const {
     queue,
@@ -46,52 +54,27 @@ const VideoRepurposer = () => {
     processQueue
   } = useVideoQueue();
 
-  // Extended default settings for the new parameters
+  // Simplified default settings - only proven working parameters
   const defaultSettings = {
     // Video Quality
     videoBitrate: { min: 3000, max: 8000, enabled: true },
-    audioBitrate: { min: 128, max: 192, enabled: false },
-    frameRate: { min: 30, max: 30, enabled: false },
+    frameRate: { min: 25, max: 30, enabled: false },
     
-    // Color Adjustments
+    // Color Adjustments - Core parameters that work reliably
     saturation: { min: 0.9, max: 1.1, enabled: true },
     contrast: { min: 0.9, max: 1.1, enabled: true },
     brightness: { min: -0.1, max: 0.1, enabled: true },
-    gamma: { min: 0.9, max: 1.1, enabled: false },
     
-    // Effects
-    vignette: { min: 0, max: 0.3, enabled: false },
-    noise: { min: 0, max: 0.05, enabled: false },
-    waveformShift: { min: 0, max: 2, enabled: false },
-    pixelShift: { min: 0, max: 2, enabled: false },
-    
-    // Transformations
+    // Simple Transformations
     speed: { min: 0.95, max: 1.05, enabled: true },
-    zoom: { min: 1, max: 1.05, enabled: false },
-    rotation: { min: -2, max: 2, enabled: false },
     flipHorizontal: false,
     
-    // Size & Trim
-    pixelSize: "",
-    randomPixelSize: false,
+    // Trim timing
     trimStart: { min: 0, max: 1, enabled: true },
     trimEnd: { min: 0, max: 1, enabled: false },
     
-    // Special Features
-    usMetadata: false,
-    blurredBorder: { min: 0, max: 30, enabled: false },
-    
     // Audio
-    volume: { min: 0.9, max: 1.1, enabled: false },
-    
-    // Watermark
-    watermark: {
-      enabled: false,
-      size: 100,
-      opacity: 0.5,
-      x: 0.5,
-      y: 0.5,
-    }
+    volume: { min: 0.9, max: 1.1, enabled: false }
   };
   
   // Update usePresets with our extended settings
@@ -113,6 +96,8 @@ const VideoRepurposer = () => {
     try {
       const processedVideos = await processVideo(numCopies, settings);
       if (processedVideos) {
+        // Add to global results
+        addResults(processedVideos, 'single');
         // Switch to results tab
         setActiveTab("results");
       }
@@ -121,14 +106,7 @@ const VideoRepurposer = () => {
     }
   };
 
-  const updateWatermarkParam = (param: string, value: any) => {
-    // Create a copy of the settings
-    const newSettings = { ...settings };
-    // Update the specific watermark parameter
-    newSettings.watermark[param] = value;
-    // Update the settings using the generic updateSettingParam
-    updateSettingParam('watermark', '', newSettings.watermark);
-  };
+  // Removed watermark functionality - simplified interface
 
   const handlePreview = (fileName: string, fileUrl: string) => {
     console.log(`Preview requested: ${fileName} from ${fileUrl}`);
@@ -206,11 +184,11 @@ const VideoRepurposer = () => {
   };
 
   const handleDownloadAll = () => {
-    console.log(`Download all requested, ${results.length} files`);
-    if (results.length === 0) {
+    console.log(`Download all requested, ${globalResults.length} files`);
+    if (globalResults.length === 0) {
       toast({
         title: "No results available",
-        description: "Process a video first to generate results.",
+        description: "Process videos first to generate results.",
         variant: "destructive"
       });
       return;
@@ -218,13 +196,23 @@ const VideoRepurposer = () => {
     
     toast({
       title: "Preparing download",
-      description: "Downloading all videos...",
+      description: `Downloading all ${globalResults.length} videos...`,
       variant: "default"
     });
     
     // Download each file with a delay
-    results.forEach((result, index) => {
+    globalResults.forEach((result, index) => {
       setTimeout(() => handleDownload(result.name, result.url), index * 500);
+    });
+  };
+
+  const handleClearResults = () => {
+    clearResults();
+    setResults([]);
+    toast({
+      title: "Results cleared",
+      description: "All video results have been removed.",
+      variant: "default"
     });
   };
 
@@ -273,8 +261,8 @@ const VideoRepurposer = () => {
         <TabsList className="grid grid-cols-3 mb-8">
           <TabsTrigger value="process">Process Video</TabsTrigger>
           <TabsTrigger value="presets">Manage Presets</TabsTrigger>
-          <TabsTrigger value="results" disabled={results.length === 0}>
-            Results
+          <TabsTrigger value="results">
+            Results ({globalResults.length})
           </TabsTrigger>
         </TabsList>
 
@@ -290,7 +278,7 @@ const VideoRepurposer = () => {
             handleStartProcess={handleStartProcess}
             settings={settings}
             updateSettingParam={updateSettingParam}
-            updateWatermarkParam={updateWatermarkParam}
+            updateWatermarkParam={() => {}}
             // Queue props
             queue={queue}
             isQueueProcessing={isQueueProcessing}
@@ -318,10 +306,11 @@ const VideoRepurposer = () => {
 
         <TabsContent value="results">
           <ResultsTab
-            results={results}
+            results={globalResults}
             handlePreview={handlePreview}
             handleDownload={handleDownload}
             handleDownloadAll={handleDownloadAll}
+            handleClearResults={handleClearResults}
           />
         </TabsContent>
       </Tabs>
