@@ -122,7 +122,7 @@ export const useVideoProcessing = () => {
         // Update the progress to 100%
         setProgress(100);
         
-        // Set the results
+        // Set the results - handle both old format (results array) and new format (single result)
         if (responseData.results && Array.isArray(responseData.results)) {
           const processedVideos = responseData.results.map(result => ({
             name: result.name,
@@ -139,10 +139,28 @@ export const useVideoProcessing = () => {
           });
           
           return processedVideos;
-        } else {
+        } else if (responseData.success && responseData.videoUrl) {
+          // Handle single video response format from Railway
+          const processedVideo = {
+            name: `processed_${uploadedFile.name}`,
+            url: responseData.videoUrl,
+            processingDetails: responseData
+          };
+          
+          setResults([processedVideo]);
+          
           toast({
             title: "Processing complete",
-            description: "Video processing completed successfully.",
+            description: "Video processed successfully.",
+            variant: "default"
+          });
+          
+          return [processedVideo];
+        } else {
+          console.warn("Unexpected response format:", responseData);
+          toast({
+            title: "Processing complete",
+            description: "Video processing completed but result format is unexpected.",
             variant: "default"
           });
           return [];
