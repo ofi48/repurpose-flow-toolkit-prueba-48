@@ -131,7 +131,7 @@ export const processVideoOnServer = async (file: File, params: any) => {
     console.log('FormData created with:', file.name, 'and params');
     
     // Making the request directly to Railway server with correct endpoint
-    const response = await fetch('https://video-server-production-d7af.up.railway.app/process-video', {
+    const response = await fetch('https://video-server-production-a86c.up.railway.app/process-video', {
       method: 'POST',
       body: formData,
       headers: {
@@ -177,7 +177,7 @@ export const processVideoOnServer = async (file: File, params: any) => {
     // Transform Railway URLs to be accessible
     if (data.results) {
       return data.results.map(result => ({
-        url: result.url.startsWith('http') ? result.url : `https://video-server-production-d7af.up.railway.app${result.url}`,
+        url: result.url.startsWith('http') ? result.url : `https://video-server-production-a86c.up.railway.app${result.url}`,
         name: result.name || `processed_${file.name}`,
         processingDetails: result.processingDetails || params
       }));

@@ -21,7 +21,7 @@ export const TestEndpoints = () => {
       formData.append('settings', JSON.stringify({ quality: 'medium' }));
       formData.append('numCopies', '1');
 
-      const response = await fetch('https://repurpose-flow-toolkit-prueba-48-production.up.railway.app/process-video', {
+      const response = await fetch('https://video-server-production-a86c.up.railway.app/process-video', {
         method: 'POST',
         body: formData,
         headers: {
@@ -68,7 +68,7 @@ export const TestEndpoints = () => {
       formData.append('file2', testFile2);
       formData.append('operation', 'compare-media');
 
-      const response = await fetch('https://repurpose-flow-toolkit-prueba-48-production.up.railway.app/compare-media', {
+      const response = await fetch('https://video-server-production-a86c.up.railway.app/compare-media', {
         method: 'POST',
         body: formData,
         headers: {
@@ -142,7 +142,7 @@ export const TestEndpoints = () => {
       <CardHeader>
         <CardTitle>Prueba de Endpoints Railway</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Servidor: repurpose-flow-toolkit-prueba-48-production.up.railway.app
+          Servidor: video-server-production-a86c.up.railway.app
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

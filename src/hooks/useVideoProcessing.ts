@@ -80,7 +80,7 @@ export const useVideoProcessing = () => {
         console.log("Sending request to process-video endpoint");
         
         // Send request to the correct Railway URL with the process-video endpoint
-        const response = await fetch('https://repurpose-flow-toolkit-prueba-48-production.up.railway.app/process-video', {
+        const response = await fetch('https://video-server-production-a86c.up.railway.app/process-video', {
           method: 'POST',
           body: formData,
           headers: {
@@ -126,7 +126,7 @@ export const useVideoProcessing = () => {
         if (responseData.results && Array.isArray(responseData.results)) {
           const processedVideos = responseData.results.map(result => ({
             name: result.name,
-            url: result.url.startsWith('http') ? result.url : `https://repurpose-flow-toolkit-prueba-48-production.up.railway.app${result.url}`,
+            url: result.url.startsWith('http') ? result.url : `https://video-server-production-a86c.up.railway.app${result.url}`,
             processingDetails: result.processingDetails
           }));
           

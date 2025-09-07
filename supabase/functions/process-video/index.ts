@@ -26,11 +26,11 @@ async function handleVideoProcessing(req: Request): Promise<Response> {
       (String(operation).includes('compare') || String(operation) === 'compare-pixels');
     
     // Choose the appropriate endpoint based on the operation
-    let railwayUrl = "https://repurpose-flow-toolkit-prueba-48-production.up.railway.app/process-video";
+    let railwayUrl = "https://video-server-production-a86c.up.railway.app/process-video";
     
     if (isComparison) {
       // Use the comparison-specific endpoint - first try compare-media, fallback to compare-files
-      railwayUrl = "https://repurpose-flow-toolkit-prueba-48-production.up.railway.app/compare-media";
+      railwayUrl = "https://video-server-production-a86c.up.railway.app/compare-media";
       console.log("Using comparison-specific endpoint");
     }
     
