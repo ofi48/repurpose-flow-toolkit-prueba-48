@@ -77,102 +77,98 @@ export const useVideoProcessing = () => {
       setProgress(20);
       
       try {
-        console.log("Sending request to process-video endpoint");
-        
-        // Send request to the correct Railway URL with the process-video endpoint
-        const response = await fetch('https://video-server-production-a86c.up.railway.app/process-video', {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Accept': 'application/json'
+        const allResults: {name: string, url: string, processingDetails?: any}[] = [];
+
+        for (let i = 0; i < numCopies; i++) {
+          console.log(`Sending request to process-video endpoint (variation ${i + 1}/${numCopies})`);
+
+          const formData = new FormData();
+          formData.append('video', uploadedFile);
+          formData.append('settings', JSON.stringify(settings));
+          try {
+            const variationParams = generateProcessingParameters(settings);
+            formData.append('params', JSON.stringify(variationParams));
+          } catch {
+            // ignore param generation errors
           }
+
+          const response = await fetch('https://video-server-production-a86c.up.railway.app/process-video', {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+
+          // Log response status and headers for debugging
+          console.log("Response status:", response.status);
+          console.log("Response headers:", Object.fromEntries(response.headers));
+
+          // Check if response is JSON
+          const contentType = response.headers.get('content-type');
+          console.log("Response content-type:", contentType);
+
+          if (!contentType || !contentType.includes('application/json')) {
+            const textResponse = await response.text();
+            console.error('Non-JSON response received:', textResponse.substring(0, 500));
+            throw new Error(`Server returned an unexpected response format. Content-Type: ${contentType || 'undefined'}\n${textResponse.substring(0, 200)}`);
+          }
+
+          let responseData: any;
+          try {
+            responseData = await response.json();
+            console.log("Response data:", JSON.stringify(responseData).substring(0, 200));
+          } catch (jsonError) {
+            console.error('JSON parsing error:', jsonError);
+            throw new Error('Failed to parse server response as JSON. The server might be returning invalid JSON.');
+          }
+
+          if (!response.ok) {
+            const errorMsg = responseData.error || "Processing failed";
+            console.error('Server returned error:', errorMsg);
+            throw new Error(errorMsg);
+          }
+
+          // Handle both array and single response formats
+          if (responseData.results && Array.isArray(responseData.results)) {
+            const processedVideos = responseData.results.map((result: any, idx: number) => ({
+              name: result.name || `processed_${i + 1}_${idx + 1}_${uploadedFile.name}`,
+              url: (result.url && result.url.startsWith('http'))
+                ? result.url.replace('http://', 'https://')
+                : `https://video-server-production-a86c.up.railway.app${result.url}`.replace('http://', 'https://'),
+              processingDetails: result.processingDetails
+            }));
+            allResults.push(...processedVideos);
+          } else if (responseData.success && responseData.videoUrl) {
+            const secureUrl = String(responseData.videoUrl).replace('http://', 'https://');
+            allResults.push({
+              name: `processed_${i + 1}_${uploadedFile.name}`,
+              url: secureUrl,
+              processingDetails: responseData
+            });
+          } else {
+            console.warn("Unexpected response format:", responseData);
+          }
+
+          setProgress(Math.round(((i + 1) / numCopies) * 100));
+        }
+
+        setResults(allResults);
+
+        toast({
+          title: "Processing complete",
+          description: `Generated ${allResults.length} video variants.`,
+          variant: "default"
         });
-        
-        setProgress(80);
-        
-        // Log response status and headers for debugging
-        console.log("Response status:", response.status);
-        console.log("Response headers:", Object.fromEntries(response.headers));
-        
-        // Check if response is JSON
-        const contentType = response.headers.get('content-type');
-        console.log("Response content-type:", contentType);
-        
-        if (!contentType || !contentType.includes('application/json')) {
-          const textResponse = await response.text();
-          console.error('Non-JSON response received:', textResponse.substring(0, 500));
-          throw new Error(`Server returned an unexpected response format. Content-Type: ${contentType || 'undefined'}\n${textResponse.substring(0, 200)}`);
-        }
-        
-        let responseData;
-        try {
-          responseData = await response.json();
-          console.log("Response data:", JSON.stringify(responseData).substring(0, 200));
-        } catch (jsonError) {
-          console.error('JSON parsing error:', jsonError);
-          throw new Error('Failed to parse server response as JSON. The server might be returning invalid JSON.');
-        }
-        
-        if (!response.ok) {
-          const errorMsg = responseData.error || "Processing failed";
-          console.error('Server returned error:', errorMsg);
-          throw new Error(errorMsg);
-        }
-        
-        // Update the progress to 100%
-        setProgress(100);
-        
-        // Set the results - handle both old format (results array) and new format (single result)
-        if (responseData.results && Array.isArray(responseData.results)) {
-          const processedVideos = responseData.results.map(result => ({
-            name: result.name,
-            url: result.url.startsWith('http') ? result.url : `https://video-server-production-a86c.up.railway.app${result.url}`,
-            processingDetails: result.processingDetails
-          }));
-          
-          setResults(processedVideos);
-          
-          toast({
-            title: "Processing complete",
-            description: `Generated ${processedVideos.length} video variants.`,
-            variant: "default"
-          });
-          
-          return processedVideos;
-        } else if (responseData.success && responseData.videoUrl) {
-          // Handle single video response format from Railway - force HTTPS
-          const secureUrl = responseData.videoUrl.replace('http://', 'https://');
-          const processedVideo = {
-            name: `processed_${uploadedFile.name}`,
-            url: secureUrl,
-            processingDetails: responseData
-          };
-          
-          setResults([processedVideo]);
-          
-          toast({
-            title: "Processing complete",
-            description: "Video processed successfully.",
-            variant: "default"
-          });
-          
-          return [processedVideo];
-        } else {
-          console.warn("Unexpected response format:", responseData);
-          toast({
-            title: "Processing complete",
-            description: "Video processing completed but result format is unexpected.",
-            variant: "default"
-          });
-          return [];
-        }
+
+        return allResults;
       } catch (error) {
         // Handle specific cases of errors
         if (error.message && error.message.includes('Unexpected token')) {
           console.error('JSON parsing error:', error);
           throw new Error('The server response is invalid. This may be due to server issues. Please try again later.');
         }
-        
+
         throw error;
       }
     } catch (error) {

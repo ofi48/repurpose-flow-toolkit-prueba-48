@@ -216,6 +216,17 @@ const VideoQueue: React.FC<VideoQueueProps> = ({
                         Download
                       </Button>
                     )}
+                    {onDownload && item.results.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => item.results!.forEach((r, idx) => setTimeout(() => onDownload(r.name, r.url), idx * 400))}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <Download className="h-3 w-3 mr-1" />
+                        Download All
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>

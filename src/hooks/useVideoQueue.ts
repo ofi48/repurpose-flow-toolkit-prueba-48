@@ -84,55 +84,74 @@ export const useVideoQueue = () => {
       throw new Error('Incomplete video data');
     }
 
-    const formData = new FormData();
-    formData.append('video', item.file);
-    formData.append('settings', JSON.stringify(item.settings));
-    formData.append('numCopies', (item.numCopies || 3).toString());
+    const copies = Math.max(1, item.numCopies || 1);
+    const aggregatedResults: { name: string; url: string; processingDetails?: any }[] = [];
 
-    try {
-      const response = await fetch('https://video-server-production-a86c.up.railway.app/process-video', {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
-
-      const contentType = response.headers.get('content-type');
-      
-      if (!contentType || !contentType.includes('application/json')) {
-        const textResponse = await response.text();
-        throw new Error(`Server returned unexpected format. Content-Type: ${contentType || 'undefined'}`);
-      }
-
-      let responseData;
+    for (let i = 0; i < copies; i++) {
+      const formData = new FormData();
+      formData.append('video', item.file);
+      formData.append('settings', JSON.stringify(item.settings));
       try {
-        responseData = await response.json();
-      } catch (jsonError) {
-        throw new Error('Error processing server response.');
+        // Generate per-variation parameters (if server supports them)
+        const variationParams = generateProcessingParameters(item.settings);
+        formData.append('params', JSON.stringify(variationParams));
+      } catch {
+        // ignore param generation errors
       }
 
-      if (!response.ok) {
-        const errorMsg = responseData.error || "Processing error";
-        throw new Error(errorMsg);
-      }
+      try {
+        const response = await fetch('https://video-server-production-a86c.up.railway.app/process-video', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
 
-      if (responseData.results && Array.isArray(responseData.results)) {
-        const processedVideos = responseData.results.map(result => ({
-          name: result.name,
-          url: result.url.startsWith('http') ? result.url : `https://video-server-production-a86c.up.railway.app${result.url}`,
-          processingDetails: result.processingDetails
-        }));
-        
-        return processedVideos;
-      }
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          await response.text();
+          throw new Error(`Server returned unexpected format. Content-Type: ${contentType || 'undefined'}`);
+        }
 
-      return [];
-    } catch (error) {
-      throw error;
+        let responseData: any;
+        try {
+          responseData = await response.json();
+        } catch (jsonError) {
+          throw new Error('Error processing server response.');
+        }
+
+        if (!response.ok) {
+          const errorMsg = responseData?.error || 'Processing error';
+          throw new Error(errorMsg);
+        }
+
+        if (responseData.results && Array.isArray(responseData.results)) {
+          const processedVideos = responseData.results.map((result: any, idx: number) => ({
+            name: result.name || `processed_${i + 1}_${idx + 1}_${item.file.name}`,
+            url: (result.url && result.url.startsWith('http'))
+              ? result.url.replace('http://', 'https://')
+              : `https://video-server-production-a86c.up.railway.app${result.url}`.replace('http://', 'https://'),
+            processingDetails: result.processingDetails || { copyIndex: i + 1 }
+          }));
+          aggregatedResults.push(...processedVideos);
+        } else if (responseData.success && responseData.videoUrl) {
+          const secureUrl = String(responseData.videoUrl).replace('http://', 'https://');
+          aggregatedResults.push({
+            name: `processed_${i + 1}_${item.file.name}`,
+            url: secureUrl,
+            processingDetails: { ...responseData, copyIndex: i + 1 }
+          });
+        } else {
+          console.warn('Unexpected response format for queue item:', responseData);
+        }
+      } catch (error) {
+        throw error;
+      }
     }
-  };
 
+    return aggregatedResults;
+  };
   const processQueue = useCallback(async () => {
     if (isProcessing) return;
 
