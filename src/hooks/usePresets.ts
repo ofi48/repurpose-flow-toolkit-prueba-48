@@ -29,9 +29,9 @@ export const usePresets = <T extends VideoPresetSettings | ImagePresetSettings |
   const [presetName, setPresetName] = useState('');
   const [presets, setPresets] = useState<T[]>([]);
 
-  // Set initial settings when provided
+  // Set initial settings when provided - only if they haven't been set yet
   useEffect(() => {
-    if (initialSettings) {
+    if (initialSettings && Object.keys(settings).length === 0) {
       setSettings(initialSettings);
     }
   }, [initialSettings]);
