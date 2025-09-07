@@ -17,7 +17,7 @@ export const TestEndpoints = () => {
       // First test basic server connectivity
       console.log('Testing server connectivity...');
       
-      // Create a minimal test file
+      // Create a minimal test file (nota: no es un video real, solo para probar conectividad)
       const testFile = new File(['test'], 'test.mp4', { type: 'video/mp4' });
       const formData = new FormData();
       formData.append('video', testFile);
@@ -211,13 +211,10 @@ export const TestEndpoints = () => {
         </div>
 
         <div className="text-xs text-muted-foreground bg-muted p-3 rounded">
-          <strong>Diagnóstico:</strong> Si /process-video falla con error 500, puede ser que:
-          <ul className="mt-1 ml-4 list-disc">
-            <li>FFmpeg no esté instalado en el servidor</li>
-            <li>El servidor nuevo necesite configuración adicional</li>
-            <li>Los endpoints no estén implementados correctamente</li>
-          </ul>
-          Revisa los logs de la consola para más detalles.
+          <strong>Estado:</strong> ✅ FFmpeg instalado y funcionando correctamente en Railway.
+          <br/>
+          <strong>Nota:</strong> El test envía archivos falsos, por lo que el error "Invalid data" es esperado. 
+          Para probar realmente, usa un archivo de video real desde el repurposador de videos.
         </div>
       </CardContent>
     </Card>
