@@ -54,20 +54,21 @@ export const usePresets = <T extends VideoPresetSettings | ImagePresetSettings |
   // Generic method to update a setting parameter
   const updateSettingParam = (param: keyof T, subParam: string, value: any) => {
     setSettings((prev) => {
-      const newSettings = { ...prev };
-      
+      const newSettings: any = { ...prev };
+
       if (subParam) {
-        // For nested params like { min, max, enabled }
+        // Ensure nested object exists before spreading
+        const current = (newSettings[param] ?? {}) as any;
         newSettings[param] = {
-          ...newSettings[param],
+          ...current,
           [subParam]: value,
         };
       } else {
         // For direct params like flipHorizontal
         newSettings[param] = value;
       }
-      
-      return newSettings;
+
+      return newSettings as T;
     });
   };
 
