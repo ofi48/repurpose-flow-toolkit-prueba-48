@@ -140,10 +140,11 @@ export const useVideoProcessing = () => {
           
           return processedVideos;
         } else if (responseData.success && responseData.videoUrl) {
-          // Handle single video response format from Railway
+          // Handle single video response format from Railway - force HTTPS
+          const secureUrl = responseData.videoUrl.replace('http://', 'https://');
           const processedVideo = {
             name: `processed_${uploadedFile.name}`,
-            url: responseData.videoUrl,
+            url: secureUrl,
             processingDetails: responseData
           };
           

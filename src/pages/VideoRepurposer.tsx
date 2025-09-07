@@ -141,11 +141,13 @@ const VideoRepurposer = () => {
       return;
     }
     
+    // Force HTTPS for preview URLs
+    const secureUrl = fileUrl.replace('http://', 'https://');
     setCurrentPreview(fileName);
-    setCurrentPreviewUrl(fileUrl);
+    setCurrentPreviewUrl(secureUrl);
     setShowPreview(true);
     
-    console.log(`Previewing ${fileName} from ${fileUrl}`);
+    console.log(`Previewing ${fileName} from ${secureUrl}`);
   };
 
   const handleDownload = (fileName: string, fileUrl: string) => {
@@ -158,16 +160,45 @@ const VideoRepurposer = () => {
       });
       return;
     }
+    
     try {
-      const link = document.createElement('a');
-      link.href = fileUrl;
-      link.download = fileName;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      console.log(`Download initiated: ${fileName}`);
-      toast({ title: "Download started", description: `Downloading ${fileName}`, variant: "default" });
+      // Force HTTPS and use a more robust download method
+      const secureUrl = fileUrl.replace('http://', 'https://');
+      
+      // Use fetch to download the file with proper headers
+      fetch(secureUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'video/mp4,*/*'
+        }
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        console.log(`Download initiated: ${fileName}`);
+        toast({ title: "Download started", description: `Downloading ${fileName}`, variant: "default" });
+      })
+      .catch(error => {
+        console.error('Download error:', error);
+        toast({ 
+          title: "Download failed", 
+          description: `Error: ${error.message}. Try opening the video URL directly.`, 
+          variant: "destructive" 
+        });
+      });
     } catch (error) {
       console.error('Download error:', error);
       toast({ title: "Download failed", description: "There was an error downloading the file.", variant: "destructive" });
