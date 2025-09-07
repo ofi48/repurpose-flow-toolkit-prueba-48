@@ -22,9 +22,19 @@ const defaultGifSettings: GifSettings = {
 export const usePresets = <T extends VideoPresetSettings | ImagePresetSettings | GifSettings>(
   initialSettings?: T
 ) => {
-  const [settings, setSettings] = useState<T>(initialSettings as T);
+  const [settings, setSettings] = useState<T>(() => {
+    // Ensure we always have valid initial settings
+    return initialSettings || {} as T;
+  });
   const [presetName, setPresetName] = useState('');
   const [presets, setPresets] = useState<T[]>([]);
+
+  // Set initial settings when provided
+  useEffect(() => {
+    if (initialSettings) {
+      setSettings(initialSettings);
+    }
+  }, [initialSettings]);
 
   // Load presets from localStorage on initial render
   useEffect(() => {

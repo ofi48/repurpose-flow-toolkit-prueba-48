@@ -25,6 +25,24 @@ const VideoProcessingPanel: React.FC<VideoProcessingPanelProps> = ({
   updateSettingParam,
   updateWatermarkParam
 }) => {
+  // Safety check to ensure all required properties exist
+  if (!settings || 
+      !settings.videoBitrate || 
+      !settings.frameRate || 
+      !settings.saturation || 
+      !settings.contrast || 
+      !settings.brightness || 
+      !settings.speed || 
+      !settings.volume || 
+      !settings.trimStart || 
+      !settings.trimEnd ||
+      settings.flipHorizontal === undefined) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <p className="text-muted-foreground">Loading settings...</p>
+      </div>
+    );
+  }
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Video Quality Section */}
