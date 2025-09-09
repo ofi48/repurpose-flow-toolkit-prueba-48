@@ -6,70 +6,90 @@
 
 @layer base {
   :root {
-    --background: 7 11 20;
-    --foreground: 255 255 255;
-    --card: 7 11 20;
-    --card-foreground: 255 255 255;
-    --popover: 7 11 20;
-    --popover-foreground: 255 255 255;
-    --primary: 34 197 94;
-    --primary-foreground: 0 0 0;
-    --secondary: 12 16 25;
-    --secondary-foreground: 255 255 255;
-    --muted: 12 16 25;
-    --muted-foreground: 156 163 175;
-    --accent: 12 16 25;
-    --accent-foreground: 255 255 255;
-    --destructive: 239 68 68;
-    --destructive-foreground: 255 255 255;
-    --border: 30 41 59;
-    --input: 30 41 59;
-    --ring: 34 197 94;
-    --chart-1: 220 38 127;
-    --chart-2: 255 206 84;
-    --chart-3: 34 197 94;
-    --chart-4: 59 130 246;
-    --chart-5: 249 115 22;
+    /* Custom ContentWizard color palette */
+    --background: 212 100% 17%; /* #001F54 - Fondo azul muy oscuro */
+    --foreground: 30 60% 98%; /* #FEFCFB - Texto blanco/crema */
+    
+    /* Cards and sections */
+    --card: 207 92% 24%; /* #034078 - Divs y secciones azul medio */
+    --card-foreground: 30 60% 98%; /* #FEFCFB - Texto en cards */
+    
+    /* Popover */
+    --popover: 207 92% 24%; /* #034078 */
+    --popover-foreground: 30 60% 98%; /* #FEFCFB */
+    
+    /* Primary - Para logos e iconos */
+    --primary: 197 77% 36%; /* #1282A2 - Azul claro para iconos */
+    --primary-foreground: 30 60% 98%; /* #FEFCFB */
+    
+    /* Secondary */
+    --secondary: 207 92% 24%; /* #034078 - Secciones */
+    --secondary-foreground: 30 60% 98%; /* #FEFCFB */
+    
+    /* Muted */
+    --muted: 207 92% 24%; /* #034078 */
+    --muted-foreground: 30 40% 80%; /* Texto más suave */
+    
+    /* Accent */
+    --accent: 197 77% 36%; /* #1282A2 */
+    --accent-foreground: 30 60% 98%; /* #FEFCFB */
+    
+    /* Destructive */
+    --destructive: 0 72% 51%; /* Rojo para errores */
+    --destructive-foreground: 30 60% 98%; /* #FEFCFB */
+    
+    /* Border and input */
+    --border: 197 50% 45%; /* Bordes más claros */
+    --input: 207 92% 24%; /* #034078 */
+    --ring: 197 77% 36%; /* #1282A2 */
+    
+    /* Chart colors */
+    --chart-1: 197 77% 36%; /* #1282A2 */
+    --chart-2: 120 60% 50%; /* Verde */
+    --chart-3: 45 100% 50%; /* Amarillo */
+    --chart-4: 0 72% 51%; /* Rojo */
+    --chart-5: 270 60% 60%; /* Púrpura */
 
-    /* Sidebar colors - matching main theme */
-    --sidebar-background: 7 11 20;
-    --sidebar-foreground: 255 255 255;
-    --sidebar-primary: 34 197 94;
-    --sidebar-primary-foreground: 0 0 0;
-    --sidebar-accent: 12 16 25;
-    --sidebar-accent-foreground: 255 255 255;
-    --sidebar-border: 30 41 59;
-    --sidebar-ring: 34 197 94;
+    /* Sidebar colors */
+    --sidebar-background: 212 100% 17%; /* #001F54 */
+    --sidebar-foreground: 30 60% 98%; /* #FEFCFB */
+    --sidebar-primary: 197 77% 36%; /* #1282A2 */
+    --sidebar-primary-foreground: 30 60% 98%; /* #FEFCFB */
+    --sidebar-accent: 207 92% 24%; /* #034078 */
+    --sidebar-accent-foreground: 30 60% 98%; /* #FEFCFB */
+    --sidebar-border: 197 50% 45%; /* Bordes */
+    --sidebar-ring: 197 77% 36%; /* #1282A2 */
 
     /* Custom app-specific colors */
-    --app-blue: 34 197 94;
-    --app-blue-light: 74 222 128;
-    --app-dark: 7 11 20;
-    --app-dark-accent: 12 16 25;
+    --app-blue: 197 77% 36%; /* #1282A2 - Para iconos */
+    --app-blue-light: 197 77% 50%; /* Versión más clara */
+    --app-dark: 212 100% 17%; /* #001F54 - Fondo */
+    --app-dark-accent: 207 92% 24%; /* #034078 - Secciones */
     
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 7 11 20;
-    --foreground: 255 255 255;
-    --card: 7 11 20;
-    --card-foreground: 255 255 255;
-    --popover: 7 11 20;
-    --popover-foreground: 255 255 255;
-    --primary: 34 197 94;
-    --primary-foreground: 0 0 0;
-    --secondary: 12 16 25;
-    --secondary-foreground: 255 255 255;
-    --muted: 12 16 25;
-    --muted-foreground: 156 163 175;
-    --accent: 12 16 25;
-    --accent-foreground: 255 255 255;
-    --destructive: 239 68 68;
-    --destructive-foreground: 255 255 255;
-    --border: 30 41 59;
-    --input: 30 41 59;
-    --ring: 34 197 94;
+    /* Mismos valores para modo oscuro */
+    --background: 212 100% 17%; /* #001F54 */
+    --foreground: 30 60% 98%; /* #FEFCFB */
+    --card: 207 92% 24%; /* #034078 */
+    --card-foreground: 30 60% 98%; /* #FEFCFB */
+    --popover: 207 92% 24%; /* #034078 */
+    --popover-foreground: 30 60% 98%; /* #FEFCFB */
+    --primary: 197 77% 36%; /* #1282A2 */
+    --primary-foreground: 30 60% 98%; /* #FEFCFB */
+    --secondary: 207 92% 24%; /* #034078 */
+    --secondary-foreground: 30 60% 98%; /* #FEFCFB */
+    --muted: 207 92% 24%; /* #034078 */
+    --muted-foreground: 30 40% 80%; /* Texto suave */
+    --accent: 197 77% 36%; /* #1282A2 */
+    --accent-foreground: 30 60% 98%; /* #FEFCFB */
+    --destructive: 0 72% 51%; /* Rojo */
+    --destructive-foreground: 30 60% 98%; /* #FEFCFB */
+    --border: 197 50% 45%; /* Bordes */
+    --input: 207 92% 24%; /* #034078 */
+    --ring: 197 77% 36%; /* #1282A2 */
   }
 }
 
@@ -85,7 +105,7 @@
 
 @layer components {
   .parameter-card {
-    @apply bg-app-dark-accent border border-gray-700 rounded-lg p-4;
+    @apply bg-card border border-border rounded-lg p-4 shadow-sm;
   }
   
   .sidebar-item {
@@ -101,6 +121,6 @@
   }
 
   .file-upload-area {
-    @apply border-2 border-dashed border-gray-700 rounded-lg p-8 text-center cursor-pointer transition-colors hover:border-app-blue;
+    @apply border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer transition-colors hover:border-primary;
   }
 }
