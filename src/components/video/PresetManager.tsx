@@ -67,7 +67,7 @@ const PresetManager: React.FC<PresetManagerProps> = ({
               placeholder="My Custom Preset" 
               value={presetName}
               onChange={(e) => setPresetName(e.target.value)}
-              className="bg-background border-border"
+              className="bg-app-dark-accent border-gray-700"
             />
           </div>
           <Button onClick={onSavePreset} className="w-full">
@@ -92,15 +92,15 @@ const PresetManager: React.FC<PresetManagerProps> = ({
         <h2 className="text-xl font-semibold mb-4">Saved Presets</h2>
         <div className="space-y-2">
           {presets.length === 0 ? (
-            <div className="bg-card border border-border rounded-md p-4">
-              <p className="text-muted-foreground text-center">No saved presets yet</p>
+            <div className="bg-app-dark-accent border border-gray-700 rounded-md p-4">
+              <p className="text-gray-400 text-center">No saved presets yet</p>
             </div>
           ) : (
             presets.map((preset, index) => (
-              <div key={index} className="bg-card border border-border rounded-md p-4 flex justify-between items-center">
+              <div key={index} className="bg-app-dark-accent border border-gray-700 rounded-md p-4 flex justify-between items-center">
                 <div>
                   <h3 className="font-semibold">{preset.name}</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-gray-400">
                     {Object.entries(preset).filter(([key, value]) => 
                       key !== 'name' && (typeof value === 'object' ? value.enabled : value)
                     ).length} parameters enabled
