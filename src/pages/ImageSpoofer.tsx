@@ -16,7 +16,7 @@ const ImageSpoofer = () => {
   const [numCopies, setNumCopies] = useState(3);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [results, setResults] = useState<string[]>([]);
+  const [results, setResults] = useState<{ name: string; url: string }[]>([]);
   const { toast } = useToast();
 
   // Settings
@@ -56,11 +56,15 @@ const ImageSpoofer = () => {
           clearInterval(interval);
           setProcessing(false);
           
-          // Mock results
+          // Mock results - Create blob URLs from original files
           const mockResults = [];
           for (let i = 0; i < uploadedFiles.length; i++) {
             for (let j = 0; j < numCopies; j++) {
-              mockResults.push(`${uploadedFiles[i].name.split('.')[0]}_variant_${j+1}.jpg`);
+              // Create a mock variant by cloning the original file
+              const originalFile = uploadedFiles[i];
+              const mockVariantName = `${originalFile.name.split('.')[0]}_variant_${j+1}.${originalFile.name.split('.').pop()}`;
+              const mockUrl = URL.createObjectURL(originalFile); // Use original for demo
+              mockResults.push({ name: mockVariantName, url: mockUrl });
             }
           }
           setResults(mockResults);
@@ -76,6 +80,29 @@ const ImageSpoofer = () => {
         return prev + (100 / (uploadedFiles.length * numCopies * 5));
       });
     }, 100);
+  };
+
+  const handleDownload = (fileName: string, fileUrl: string) => {
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadAll = () => {
+    results.forEach((result, index) => {
+      setTimeout(() => {
+        handleDownload(result.name, result.url);
+      }, index * 100); // Stagger downloads
+    });
+    
+    toast({
+      title: "Download started",
+      description: `Downloading ${results.length} image variants.`,
+      variant: "default"
+    });
   };
 
   const updateSettingParam = (
@@ -250,13 +277,17 @@ const ImageSpoofer = () => {
                     <div className="aspect-square bg-black flex items-center justify-center">
                       <ImageIcon className="h-10 w-10 text-gray-600" />
                     </div>
-                    <div className="p-2">
-                      <p className="text-xs font-medium truncate">{result}</p>
-                      <Button size="sm" className="w-full mt-2">
-                        <Download className="h-3 w-3 mr-1" />
-                        Download
-                      </Button>
-                    </div>
+                     <div className="p-2">
+                       <p className="text-xs font-medium truncate">{result.name}</p>
+                       <Button 
+                         size="sm" 
+                         className="w-full mt-2"
+                         onClick={() => handleDownload(result.name, result.url)}
+                       >
+                         <Download className="h-3 w-3 mr-1" />
+                         Download
+                       </Button>
+                     </div>
                   </div>
                 ))}
               </div>
@@ -267,10 +298,10 @@ const ImageSpoofer = () => {
                     Generated {results.length} image variants
                   </p>
                 </div>
-                <Button>
-                  <Download className="mr-2 h-4 w-4" />
-                  Download All
-                </Button>
+                 <Button onClick={handleDownloadAll}>
+                   <Download className="mr-2 h-4 w-4" />
+                   Download All
+                 </Button>
               </div>
             </div>
           )}
