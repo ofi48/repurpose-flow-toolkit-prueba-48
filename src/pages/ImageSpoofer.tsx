@@ -37,7 +37,78 @@ const ImageSpoofer = () => {
     setResults([]);
   };
 
-  const handleStartProcess = () => {
+  const applyImageEffects = async (file: File, variantIndex: number): Promise<{ name: string; url: string }> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d')!;
+        
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        // Random flip horizontal
+        const shouldFlip = settings.flipHorizontal && Math.random() > 0.5;
+        if (shouldFlip) {
+          ctx.scale(-1, 1);
+          ctx.translate(-canvas.width, 0);
+        }
+
+        // Apply filter effects
+        const filters = [];
+        
+        if (settings.brightness.enabled) {
+          const brightness = Math.random() * (settings.brightness.max - settings.brightness.min) + settings.brightness.min;
+          filters.push(`brightness(${brightness})`);
+        }
+        
+        if (settings.contrast.enabled) {
+          const contrast = Math.random() * (settings.contrast.max - settings.contrast.min) + settings.contrast.min;
+          filters.push(`contrast(${contrast})`);
+        }
+        
+        if (settings.saturation.enabled) {
+          const saturation = Math.random() * (settings.saturation.max - settings.saturation.min) + settings.saturation.min;
+          filters.push(`saturate(${saturation})`);
+        }
+
+        ctx.filter = filters.join(' ');
+        ctx.drawImage(img, 0, 0);
+
+        // Apply blur border if enabled
+        if (settings.blurBorder) {
+          const borderSize = Math.floor(Math.min(canvas.width, canvas.height) * 0.02);
+          const gradient = ctx.createRadialGradient(
+            canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) / 2 - borderSize,
+            canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) / 2
+          );
+          gradient.addColorStop(0, 'rgba(0,0,0,0)');
+          gradient.addColorStop(1, 'rgba(0,0,0,0.3)');
+          
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Convert to blob with compression
+        const quality = settings.compression.enabled 
+          ? (Math.random() * (settings.compression.max - settings.compression.min) + settings.compression.min) / 100
+          : 0.9;
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const name = `${file.name.split('.')[0]}_variant_${variantIndex + 1}.${file.name.split('.').pop()}`;
+            resolve({ name, url });
+          }
+        }, `image/${file.name.split('.').pop() === 'png' ? 'png' : 'jpeg'}`, quality);
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleStartProcess = async () => {
     if (uploadedFiles.length === 0) {
       toast({
         title: "No files selected",
@@ -48,38 +119,42 @@ const ImageSpoofer = () => {
     }
 
     setProcessing(true);
+    setProgress(0);
     
-    // Simulate processing - in a real app, this would call an API
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setProcessing(false);
+    try {
+      const allResults = [];
+      const totalVariants = uploadedFiles.length * numCopies;
+      let processedVariants = 0;
+
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        const file = uploadedFiles[i];
+        
+        for (let j = 0; j < numCopies; j++) {
+          const result = await applyImageEffects(file, j);
+          allResults.push(result);
           
-          // Mock results - Create blob URLs from original files
-          const mockResults = [];
-          for (let i = 0; i < uploadedFiles.length; i++) {
-            for (let j = 0; j < numCopies; j++) {
-              // Create a mock variant by cloning the original file
-              const originalFile = uploadedFiles[i];
-              const mockVariantName = `${originalFile.name.split('.')[0]}_variant_${j+1}.${originalFile.name.split('.').pop()}`;
-              const mockUrl = URL.createObjectURL(originalFile); // Use original for demo
-              mockResults.push({ name: mockVariantName, url: mockUrl });
-            }
-          }
-          setResults(mockResults);
-          
-          toast({
-            title: "Processing complete",
-            description: `Generated ${mockResults.length} image variants.`,
-            variant: "default"
-          });
-          
-          return 100;
+          processedVariants++;
+          setProgress((processedVariants / totalVariants) * 100);
         }
-        return prev + (100 / (uploadedFiles.length * numCopies * 5));
+      }
+      
+      setResults(allResults);
+      setProcessing(false);
+      
+      toast({
+        title: "Processing complete",
+        description: `Generated ${allResults.length} image variants with real effects applied.`,
+        variant: "default"
       });
-    }, 100);
+    } catch (error) {
+      console.error('Error processing images:', error);
+      setProcessing(false);
+      toast({
+        title: "Processing failed",
+        description: "An error occurred while processing the images.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleDownload = (fileName: string, fileUrl: string) => {
@@ -274,9 +349,17 @@ const ImageSpoofer = () => {
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {results.map((result, index) => (
                   <div key={index} className="bg-app-dark-accent border border-gray-700 rounded-lg overflow-hidden">
-                    <div className="aspect-square bg-black flex items-center justify-center">
-                      <ImageIcon className="h-10 w-10 text-gray-600" />
-                    </div>
+                     <div className="aspect-square bg-black flex items-center justify-center overflow-hidden">
+                       <img 
+                         src={result.url} 
+                         alt={result.name}
+                         className="w-full h-full object-cover"
+                         onError={(e) => {
+                           e.currentTarget.src = '';
+                           e.currentTarget.style.display = 'none';
+                         }}
+                       />
+                     </div>
                      <div className="p-2">
                        <p className="text-xs font-medium truncate">{result.name}</p>
                        <Button 
