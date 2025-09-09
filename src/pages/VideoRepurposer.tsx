@@ -81,7 +81,9 @@ const VideoRepurposer = () => {
     updateSettingParam,
     savePreset,
     loadPreset,
-    deletePreset
+    deletePreset,
+    exportPresets,
+    importPresets
   } = usePresets(defaultSettings);
   
   // Using ephemeral anchors for downloads; no pre-created hidden link is necessary.
@@ -296,6 +298,8 @@ const VideoRepurposer = () => {
             onSavePreset={savePreset}
             onLoadPreset={handleLoadPreset}
             onDeletePreset={handleDeletePreset}
+            onExportPresets={exportPresets}
+            onImportPresets={importPresets}
           />
         </TabsContent>
 

@@ -1,7 +1,7 @@
-
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from './Sidebar';
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import AppSidebar from './AppSidebar';
 import UserMenu from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -23,26 +23,31 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // If still loading, show a minimal loading state
   if (loading) {
     return (
-      <div className="flex h-screen bg-app-dark text-white items-center justify-center">
+      <div className="flex h-screen bg-background text-foreground items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-400">Loading...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-app-dark text-white">
-      <Sidebar />
-      <div className="flex-1 overflow-auto flex flex-col">
-        <div className="p-4 border-b border-gray-800 flex justify-end">
-          <UserMenu />
-        </div>
-        <div className="flex-1 overflow-auto">
-          {children}
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <AppSidebar />
+        
+        <div className="flex-1 flex flex-col">
+          <header className="h-14 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-4">
+            <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+            <UserMenu />
+          </header>
+          
+          <main className="flex-1 overflow-auto">
+            {children}
+          </main>
         </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 

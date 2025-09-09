@@ -1,10 +1,10 @@
-
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Save, X } from 'lucide-react';
+import { Save, X, Download, Upload } from 'lucide-react';
 import { VideoPresetSettings } from '@/types/preset';
+import { useToast } from "@/hooks/use-toast";
 
 interface PresetManagerProps {
   presets: VideoPresetSettings[];
@@ -13,6 +13,8 @@ interface PresetManagerProps {
   onSavePreset: () => void;
   onLoadPreset: (preset: VideoPresetSettings) => void;
   onDeletePreset: (preset: VideoPresetSettings) => void;
+  onExportPresets: () => void;
+  onImportPresets: (file: File) => Promise<any>;
 }
 
 const PresetManager: React.FC<PresetManagerProps> = ({
@@ -21,8 +23,38 @@ const PresetManager: React.FC<PresetManagerProps> = ({
   setPresetName,
   onSavePreset,
   onLoadPreset,
-  onDeletePreset
+  onDeletePreset,
+  onExportPresets,
+  onImportPresets
 }) => {
+  const { toast } = useToast();
+
+  const handleImportClick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        try {
+          await onImportPresets(file);
+          toast({
+            title: "Success",
+            description: "Presets imported successfully",
+            variant: "default"
+          });
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "Failed to import presets",
+            variant: "destructive"
+          });
+        }
+      }
+    };
+    input.click();
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
       <div className="space-y-4 md:col-span-1">
@@ -35,13 +67,24 @@ const PresetManager: React.FC<PresetManagerProps> = ({
               placeholder="My Custom Preset" 
               value={presetName}
               onChange={(e) => setPresetName(e.target.value)}
-              className="bg-app-dark-accent border-gray-700"
+              className="bg-background border-border"
             />
           </div>
           <Button onClick={onSavePreset} className="w-full">
             <Save className="mr-2 h-4 w-4" />
             Save Preset
           </Button>
+          
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={onExportPresets} className="flex-1">
+              <Download className="mr-2 h-4 w-4" />
+              Export All
+            </Button>
+            <Button variant="outline" onClick={handleImportClick} className="flex-1">
+              <Upload className="mr-2 h-4 w-4" />
+              Import
+            </Button>
+          </div>
         </div>
       </div>
       
@@ -49,15 +92,15 @@ const PresetManager: React.FC<PresetManagerProps> = ({
         <h2 className="text-xl font-semibold mb-4">Saved Presets</h2>
         <div className="space-y-2">
           {presets.length === 0 ? (
-            <div className="bg-app-dark-accent border border-gray-700 rounded-md p-4">
-              <p className="text-gray-400 text-center">No saved presets yet</p>
+            <div className="bg-card border border-border rounded-md p-4">
+              <p className="text-muted-foreground text-center">No saved presets yet</p>
             </div>
           ) : (
             presets.map((preset, index) => (
-              <div key={index} className="bg-app-dark-accent border border-gray-700 rounded-md p-4 flex justify-between items-center">
+              <div key={index} className="bg-card border border-border rounded-md p-4 flex justify-between items-center">
                 <div>
                   <h3 className="font-semibold">{preset.name}</h3>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-muted-foreground">
                     {Object.entries(preset).filter(([key, value]) => 
                       key !== 'name' && (typeof value === 'object' ? value.enabled : value)
                     ).length} parameters enabled

@@ -9,7 +9,7 @@ import { VideoQueueProvider } from "./contexts/VideoQueueContext";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import VideoRepurposer from "./pages/VideoRepurposer";
-import VideoLite from "./pages/VideoLite";
+
 import ImageSpoofer from "./pages/ImageSpoofer";
 import GifConverter from "./pages/GifConverter";
 import Detector from "./pages/Detector";
@@ -30,7 +30,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Layout><Dashboard /></Layout>} />
               <Route path="/video-repurposer" element={<Layout><VideoRepurposer /></Layout>} />
-              <Route path="/video-lite" element={<Layout><VideoLite /></Layout>} />
+              
               <Route path="/image-spoofer" element={<Layout><ImageSpoofer /></Layout>} />
               <Route path="/gif-converter" element={<Layout><GifConverter /></Layout>} />
               <Route path="/detector" element={<Layout><Detector /></Layout>} />

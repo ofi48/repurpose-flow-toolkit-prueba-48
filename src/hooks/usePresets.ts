@@ -105,6 +105,56 @@ export const usePresets = <T extends VideoPresetSettings | ImagePresetSettings |
     localStorage.setItem('presets', JSON.stringify(updatedPresets));
   };
 
+  // Export presets to JSON file
+  const exportPresets = () => {
+    const dataStr = JSON.stringify(presets, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'contentwizard-presets.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    URL.revokeObjectURL(url);
+  };
+
+  // Import presets from JSON file
+  const importPresets = (file: File) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const importedPresets = JSON.parse(e.target?.result as string);
+          if (Array.isArray(importedPresets)) {
+            // Merge with existing presets, avoiding duplicates by name
+            const merged = [...presets];
+            importedPresets.forEach((preset: T) => {
+              const existingIndex = merged.findIndex(p => p.name === preset.name);
+              if (existingIndex >= 0) {
+                merged[existingIndex] = preset;
+              } else {
+                merged.push(preset);
+              }
+            });
+            
+            setPresets(merged);
+            localStorage.setItem('presets', JSON.stringify(merged));
+            resolve(merged);
+          } else {
+            reject(new Error('Invalid preset file format'));
+          }
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsText(file);
+    });
+  };
+
   return {
     settings,
     setSettings,
@@ -115,5 +165,7 @@ export const usePresets = <T extends VideoPresetSettings | ImagePresetSettings |
     savePreset,
     loadPreset,
     deletePreset,
+    exportPresets,
+    importPresets,
   };
 };
