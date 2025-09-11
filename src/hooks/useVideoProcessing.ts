@@ -86,8 +86,10 @@ export const useVideoProcessing = () => {
           formData.append('video', uploadedFile);
           formData.append('settings', JSON.stringify(settings));
           try {
-            const variationParams = generateProcessingParameters(settings);
+            // Pass variation index to ensure unique parameters for each iteration
+            const variationParams = generateProcessingParameters(settings, i);
             formData.append('params', JSON.stringify(variationParams));
+            console.log(`Generated unique parameters for variation ${i + 1}:`, variationParams);
           } catch {
             // ignore param generation errors
           }
