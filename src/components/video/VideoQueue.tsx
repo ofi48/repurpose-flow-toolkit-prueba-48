@@ -77,6 +77,19 @@ const VideoQueue: React.FC<VideoQueueProps> = ({
   const waitingCount = queue.filter(item => item.status === 'waiting').length;
   const completedCount = queue.filter(item => item.status === 'completed').length;
   const errorCount = queue.filter(item => item.status === 'error').length;
+  const hasCompletedResults = queue.some(item => item.status === 'completed' && item.results && item.results.length > 0);
+
+  const handleDownloadAllProcessed = () => {
+    if (!onDownload) return;
+    
+    const allResults = queue
+      .filter(item => item.status === 'completed' && item.results)
+      .flatMap(item => item.results!);
+    
+    allResults.forEach((result, index) => {
+      setTimeout(() => onDownload(result.name, result.url), index * 400);
+    });
+  };
 
   if (queue.length === 0) {
     return (
@@ -107,6 +120,18 @@ const VideoQueue: React.FC<VideoQueueProps> = ({
               <Play className="h-4 w-4 mr-1" />
               {isProcessing ? 'Processing...' : 'Process Queue'}
             </Button>
+            {hasCompletedResults && onDownload && (
+              <Button
+                variant="secondary"
+                onClick={handleDownloadAllProcessed}
+                disabled={isProcessing}
+                size="sm"
+                className="h-8"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                Download All
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={onClearQueue}
