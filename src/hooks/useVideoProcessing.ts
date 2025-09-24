@@ -143,8 +143,9 @@ export const useVideoProcessing = () => {
             allResults.push(...processedVideos);
           } else if (responseData.success && responseData.videoUrl) {
             const secureUrl = String(responseData.videoUrl).replace('http://', 'https://');
+            const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             allResults.push({
-              name: `processed_${i + 1}_${uploadedFile.name}`,
+              name: `processed_var${i + 1}_${uniqueId}_${uploadedFile.name}`,
               url: secureUrl,
               processingDetails: responseData
             });

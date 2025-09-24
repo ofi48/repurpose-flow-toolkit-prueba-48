@@ -140,8 +140,9 @@ export const useVideoQueue = () => {
           aggregatedResults.push(...processedVideos);
         } else if (responseData.success && responseData.videoUrl) {
           const secureUrl = String(responseData.videoUrl).replace('http://', 'https://');
+          const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
           aggregatedResults.push({
-            name: `processed_${i + 1}_${item.file.name}`,
+            name: `processed_var${i + 1}_${uniqueId}_${item.file.name}`,
             url: secureUrl,
             processingDetails: { ...responseData, copyIndex: i + 1 }
           });
