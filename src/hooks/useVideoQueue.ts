@@ -94,9 +94,10 @@ export const useVideoQueue = () => {
       formData.append('video', item.file);
       formData.append('settings', JSON.stringify(item.settings));
       try {
-        // Generate per-variation parameters (if server supports them)
-        const variationParams = generateProcessingParameters(item.settings);
+        // Generate per-variation parameters with unique variation index
+        const variationParams = generateProcessingParameters(item.settings, i);
         formData.append('params', JSON.stringify(variationParams));
+        console.log(`Generated variation ${i + 1} parameters:`, variationParams);
       } catch {
         // ignore param generation errors
       }
