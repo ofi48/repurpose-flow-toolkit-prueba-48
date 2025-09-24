@@ -8,30 +8,44 @@ export const getRandomValue = (min: number, max: number, seed?: number): number 
   return min + randomValue * (max - min);
 };
 
-// Get values for processing parameters based on settings - simplified to what actually works
+// Get values for processing parameters based on settings - respects user-configured ranges
 export const generateProcessingParameters = (settings: VideoPresetSettings, variationIndex?: number) => {
-  // Use timestamp and variation index to ensure uniqueness
+  // Use timestamp and variation index to ensure uniqueness for random generation
   const seed = variationIndex !== undefined ? Date.now() + variationIndex * 1000 : undefined;
+  
+  // Helper function to get value based on range settings
+  const getParameterValue = (setting: any, defaultValue: number, seedOffset: number = 0) => {
+    if (!setting?.enabled) return defaultValue;
+    
+    // If min and max are the same, use that exact value (user wants specific value)
+    if (setting.min === setting.max) {
+      return setting.min;
+    }
+    
+    // Otherwise generate random value within range
+    return getRandomValue(setting.min, setting.max, seed ? seed + seedOffset : undefined);
+  };
+  
   const params = {
     // Video Quality
-    videoBitrate: settings.videoBitrate?.enabled ? Math.round(getRandomValue(settings.videoBitrate.min, settings.videoBitrate.max, seed)) : 8000,
-    frameRate: settings.frameRate?.enabled ? Math.round(getRandomValue(settings.frameRate.min, settings.frameRate.max, seed ? seed + 1 : undefined)) : 30,
+    videoBitrate: Math.round(getParameterValue(settings.videoBitrate, 8000, 0)),
+    frameRate: Math.round(getParameterValue(settings.frameRate, 30, 1)),
     
     // Color Adjustments - Core parameters that work reliably
-    saturation: settings.saturation?.enabled ? getRandomValue(settings.saturation.min, settings.saturation.max, seed ? seed + 2 : undefined) : 1,
-    contrast: settings.contrast?.enabled ? getRandomValue(settings.contrast.min, settings.contrast.max, seed ? seed + 3 : undefined) : 1,
-    brightness: settings.brightness?.enabled ? getRandomValue(settings.brightness.min, settings.brightness.max, seed ? seed + 4 : undefined) : 0,
+    saturation: getParameterValue(settings.saturation, 1, 2),
+    contrast: getParameterValue(settings.contrast, 1, 3),
+    brightness: getParameterValue(settings.brightness, 0, 4),
     
     // Simple Transformations
-    speed: settings.speed?.enabled ? getRandomValue(settings.speed.min, settings.speed.max, seed ? seed + 5 : undefined) : 1,
+    speed: getParameterValue(settings.speed, 1, 5),
     flipHorizontal: settings.flipHorizontal || false,
     
     // Trim timing
-    trimStart: settings.trimStart?.enabled ? getRandomValue(settings.trimStart.min, settings.trimStart.max, seed ? seed + 6 : undefined) : 0,
-    trimEnd: settings.trimEnd?.enabled ? getRandomValue(settings.trimEnd.min, settings.trimEnd.max, seed ? seed + 7 : undefined) : 0,
+    trimStart: getParameterValue(settings.trimStart, 0, 6),
+    trimEnd: getParameterValue(settings.trimEnd, 0, 7),
     
     // Audio
-    volume: settings.volume?.enabled ? getRandomValue(settings.volume.min, settings.volume.max, seed ? seed + 8 : undefined) : 1
+    volume: getParameterValue(settings.volume, 1, 8)
   };
   
   return params;
