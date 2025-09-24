@@ -56,7 +56,7 @@ const VideoRepurposer = () => {
     frameRate: { min: 25, max: 30, enabled: false },
     
     // Color Adjustments - Core parameters that work reliably
-    saturation: { min: 0.9, max: 1.1, enabled: true },
+    saturation: { min: 1.2, max: 1.5, enabled: true },
     contrast: { min: 0.9, max: 1.1, enabled: true },
     brightness: { min: -0.1, max: 0.1, enabled: true },
     

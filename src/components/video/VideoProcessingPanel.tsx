@@ -71,8 +71,8 @@ const VideoProcessingPanel: React.FC<VideoProcessingPanelProps> = ({
           min={0.5}
           max={1.5}
           step={0.05}
-          minValue={settings.saturation?.min || 0.9}
-          maxValue={settings.saturation?.max || 1.1}
+          minValue={settings.saturation?.min || 1.2}
+          maxValue={settings.saturation?.max || 1.5}
           enabled={settings.saturation?.enabled ?? true}
           onMinChange={(value) => updateSettingParam('saturation', 'min', value)}
           onMaxChange={(value) => updateSettingParam('saturation', 'max', value)}
