@@ -125,7 +125,7 @@ const VideoRepurposer = () => {
     console.log(`Previewing ${fileName} from ${secureUrl}`);
   };
 
-  const handleDownload = (fileName: string, fileUrl: string) => {
+  const handleDownload = async (fileName: string, fileUrl: string) => {
     console.log(`Download requested: ${fileName} from ${fileUrl}`);
     if (!fileUrl) {
       toast({
@@ -137,46 +137,51 @@ const VideoRepurposer = () => {
     }
     
     try {
-      // Force HTTPS and use a more robust download method
-      const secureUrl = fileUrl.replace('http://', 'https://');
-      
-      // Use fetch to download the file with proper headers
-      fetch(secureUrl, {
-        method: 'GET',
+      // Use Supabase edge function to proxy the download
+      const response = await fetch(`https://ekrvkgvojajchfytjvzk.supabase.co/functions/v1/download-processed-video`, {
+        method: 'POST',
         headers: {
-          'Accept': 'video/mp4,*/*'
-        }
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.blob();
-      })
-      .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        
-        console.log(`Download initiated: ${fileName}`);
-        toast({ title: "Download started", description: `Downloading ${fileName}`, variant: "default" });
-      })
-      .catch(error => {
-        console.error('Download error:', error);
-        toast({ 
-          title: "Download failed", 
-          description: `Error: ${error.message}. Try opening the video URL directly.`, 
-          variant: "destructive" 
-        });
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrcnZrZ3ZvamFqY2hmeXRqdnprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODM2MzgsImV4cCI6MjA3Mjc1OTYzOH0.hUhjd5N20iz_jzbtvMiZwRfhxaTtaIACd2bqMT3tldc`,
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrcnZrZ3ZvamFqY2hmeXRqdnprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODM2MzgsImV4cCI6MjA3Mjc1OTYzOH0.hUhjd5N20iz_jzbtvMiZwRfhxaTtaIACd2bqMT3tldc'
+        },
+        body: JSON.stringify({ videoUrl: fileUrl })
       });
-    } catch (error) {
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 100);
+      
+      console.log(`Download initiated: ${fileName}`);
+      
+      toast({
+        title: "Download started",
+        description: `${fileName} is being downloaded.`,
+        variant: "default"
+      });
+    } catch (error: any) {
       console.error('Download error:', error);
-      toast({ title: "Download failed", description: "There was an error downloading the file.", variant: "destructive" });
+      toast({
+        title: "Download failed",
+        description: error.message || "An error occurred while downloading the video.",
+        variant: "destructive"
+      });
     }
   };
 
