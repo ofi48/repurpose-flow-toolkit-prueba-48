@@ -158,19 +158,30 @@ export const processVideoOnServer = async (file: File, params: any, settings: Vi
     // Handle successful response
     console.log('Processing succeeded, data:', data);
     
-    // Transform Railway URLs to be accessible
-    if (data.results) {
-      return data.results.map(result => ({
-        url: result.url.startsWith('http') ? result.url : `https://video-server-production-a86c.up.railway.app${result.url}`,
-        name: result.name || `processed_${file.name}`,
-        processingDetails: result.processingDetails || params
-      }));
+    // Download the processed video from the server
+    const processedVideoUrl = data.videoUrl || data.url;
+    if (!processedVideoUrl) {
+      throw new Error('No processed video URL received from server');
     }
     
-    // Fallback for single result
+    console.log('Downloading processed video from:', processedVideoUrl);
+    
+    // Fetch the actual processed video from the server
+    const videoResponse = await fetch(processedVideoUrl);
+    if (!videoResponse.ok) {
+      throw new Error(`Failed to download processed video: ${videoResponse.status} ${videoResponse.statusText}`);
+    }
+    
+    // Convert to blob and create object URL
+    const videoBlob = await videoResponse.blob();
+    const localUrl = URL.createObjectURL(videoBlob);
+    
+    console.log('Processed video downloaded and blob created:', localUrl);
+    
+    // Return the result with the blob URL
     return {
-      url: data.url || URL.createObjectURL(file),
-      name: data.name || `processed_${file.name}`,
+      url: localUrl,
+      name: `processed_${file.name}`,
       processingDetails: params
     };
   } catch (error) {
