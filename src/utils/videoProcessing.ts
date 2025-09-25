@@ -158,29 +158,19 @@ export const processVideoOnServer = async (file: File, params: any, settings: Vi
     // Handle successful response
     console.log('Processing succeeded, data:', data);
     
-    // Download the processed video from the server
+    // Get the processed video URL from server
     const processedVideoUrl = data.videoUrl || data.url;
     if (!processedVideoUrl) {
       throw new Error('No processed video URL received from server');
     }
     
-    console.log('Downloading processed video from:', processedVideoUrl);
+    // Convert HTTP to HTTPS for secure access
+    const secureUrl = processedVideoUrl.replace('http://', 'https://');
+    console.log('Using secure processed video URL:', secureUrl);
     
-    // Fetch the actual processed video from the server
-    const videoResponse = await fetch(processedVideoUrl);
-    if (!videoResponse.ok) {
-      throw new Error(`Failed to download processed video: ${videoResponse.status} ${videoResponse.statusText}`);
-    }
-    
-    // Convert to blob and create object URL
-    const videoBlob = await videoResponse.blob();
-    const localUrl = URL.createObjectURL(videoBlob);
-    
-    console.log('Processed video downloaded and blob created:', localUrl);
-    
-    // Return the result with the blob URL
+    // Return the result with the server URL directly
     return {
-      url: localUrl,
+      url: secureUrl,
       name: `processed_${file.name}`,
       processingDetails: params
     };
