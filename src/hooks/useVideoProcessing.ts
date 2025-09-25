@@ -82,76 +82,30 @@ export const useVideoProcessing = () => {
         for (let i = 0; i < numCopies; i++) {
           console.log(`Sending request to process-video endpoint (variation ${i + 1}/${numCopies})`);
 
-          const formData = new FormData();
-          formData.append('video', uploadedFile);
-          formData.append('settings', JSON.stringify(settings));
           try {
             // Pass variation index to ensure unique parameters for each iteration
             const variationParams = generateProcessingParameters(settings, i);
-            formData.append('params', JSON.stringify(variationParams));
             console.log(`Generated unique parameters for variation ${i + 1}:`, variationParams);
-          } catch {
-            // ignore param generation errors
-          }
-
-          const response = await fetch('https://video-server-production-a86c.up.railway.app/process-video', {
-            method: 'POST',
-            body: formData,
-            headers: {
-              'Accept': 'application/json'
+            
+            // Use the enhanced processVideoOnServer function
+            const result = await processVideoOnServer(uploadedFile, variationParams, settings);
+            
+            // Handle the result
+            if (Array.isArray(result)) {
+              allResults.push(...result);
+            } else {
+              const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+              allResults.push({
+                name: `processed_var${i + 1}_${uniqueId}_${uploadedFile.name}`,
+                url: result.url,
+                processingDetails: result.processingDetails || variationParams
+              });
             }
-          });
-
-          // Log response status and headers for debugging
-          console.log("Response status:", response.status);
-          console.log("Response headers:", Object.fromEntries(response.headers));
-
-          // Check if response is JSON
-          const contentType = response.headers.get('content-type');
-          console.log("Response content-type:", contentType);
-
-          if (!contentType || !contentType.includes('application/json')) {
-            const textResponse = await response.text();
-            console.error('Non-JSON response received:', textResponse.substring(0, 500));
-            throw new Error(`Server returned an unexpected response format. Content-Type: ${contentType || 'undefined'}\n${textResponse.substring(0, 200)}`);
+          } catch (error) {
+            console.error(`Error processing variation ${i + 1}:`, error);
+            throw error;
           }
 
-          let responseData: any;
-          try {
-            responseData = await response.json();
-            console.log("Response data:", JSON.stringify(responseData).substring(0, 200));
-          } catch (jsonError) {
-            console.error('JSON parsing error:', jsonError);
-            throw new Error('Failed to parse server response as JSON. The server might be returning invalid JSON.');
-          }
-
-          if (!response.ok) {
-            const errorMsg = responseData.error || "Processing failed";
-            console.error('Server returned error:', errorMsg);
-            throw new Error(errorMsg);
-          }
-
-          // Handle both array and single response formats
-          if (responseData.results && Array.isArray(responseData.results)) {
-            const processedVideos = responseData.results.map((result: any, idx: number) => ({
-              name: result.name || `processed_${i + 1}_${idx + 1}_${uploadedFile.name}`,
-              url: (result.url && result.url.startsWith('http'))
-                ? result.url.replace('http://', 'https://')
-                : `https://video-server-production-a86c.up.railway.app${result.url}`.replace('http://', 'https://'),
-              processingDetails: result.processingDetails
-            }));
-            allResults.push(...processedVideos);
-          } else if (responseData.success && responseData.videoUrl) {
-            const secureUrl = String(responseData.videoUrl).replace('http://', 'https://');
-            const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            allResults.push({
-              name: `processed_var${i + 1}_${uniqueId}_${uploadedFile.name}`,
-              url: secureUrl,
-              processingDetails: responseData
-            });
-          } else {
-            console.warn("Unexpected response format:", responseData);
-          }
 
           setProgress(Math.round(((i + 1) / numCopies) * 100));
         }

@@ -51,47 +51,68 @@ export const generateProcessingParameters = (settings: VideoPresetSettings, vari
   return params;
 };
 
-// Build filter string for video processing - simplified to core functionality
+// Build filter string for video processing - ensures all effects are applied correctly
 export const buildComplexFilter = (params: any, settings: VideoPresetSettings) => {
-  let filter = '';
+  const filters: string[] = [];
   
-  // Add color adjustments if enabled
-  if (settings.saturation?.enabled) {
-    filter += `eq=saturation=${params.saturation}:`;
+  // Color adjustments using eq filter - build all parameters at once
+  const eqParams: string[] = [];
+  
+  if (settings.saturation?.enabled && params.saturation !== undefined) {
+    eqParams.push(`saturation=${params.saturation}`);
   }
   
-  if (settings.contrast?.enabled) {
-    filter += `contrast=${params.contrast}:`;
+  if (settings.contrast?.enabled && params.contrast !== undefined) {
+    eqParams.push(`contrast=${params.contrast}`);
   }
   
-  if (settings.brightness?.enabled) {
-    filter += `brightness=${params.brightness}:`;
+  if (settings.brightness?.enabled && params.brightness !== undefined) {
+    eqParams.push(`brightness=${params.brightness}`);
   }
   
-  // Remove trailing colon if present
-  if (filter.endsWith(':')) {
-    filter = filter.slice(0, -1);
+  // Add eq filter if we have any color adjustments
+  if (eqParams.length > 0) {
+    filters.push(`eq=${eqParams.join(':')}`);
   }
   
   // Add flip filter if enabled
   if (params.flipHorizontal) {
-    filter = filter ? `${filter},hflip` : 'hflip';
+    filters.push('hflip');
   }
   
-  return filter;
+  return filters.join(',');
 };
 
 // Server-side processing function that connects to Railway through Supabase Edge Function
-export const processVideoOnServer = async (file: File, params: any) => {
+export const processVideoOnServer = async (file: File, params: any, settings: VideoPresetSettings) => {
   console.log('Sending video for processing with parameters:', { params });
   
   try {
+    // Build the complex filter string for FFmpeg
+    const complexFilter = buildComplexFilter(params, settings);
+    console.log('Built complex filter:', complexFilter);
+    
+    // Create enhanced parameters object with filter
+    const enhancedParams = {
+      ...params,
+      complexFilter,
+      // Ensure critical parameters are properly formatted
+      videoBitrate: Math.round(params.videoBitrate || 8000),
+      frameRate: Math.round(params.frameRate || 30),
+      saturation: parseFloat((params.saturation || 1.0).toFixed(2)),
+      contrast: parseFloat((params.contrast || 1.0).toFixed(2)),
+      brightness: parseFloat((params.brightness || 0.0).toFixed(2)),
+      speed: parseFloat((params.speed || 1.0).toFixed(3)),
+      volume: parseFloat((params.volume || 1.0).toFixed(2))
+    };
+    
     // Create form data to send
     const formData = new FormData();
     formData.append('video', file);
-    formData.append('params', JSON.stringify(params));
+    formData.append('params', JSON.stringify(enhancedParams));
+    formData.append('settings', JSON.stringify(settings));
     
-    console.log('FormData created with:', file.name, 'and params');
+    console.log('FormData created with:', file.name, 'enhanced params:', enhancedParams);
     
     // Making the request directly to Railway server with correct endpoint
     const response = await fetch('https://video-server-production-a86c.up.railway.app/process-video', {

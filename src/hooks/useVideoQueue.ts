@@ -90,66 +90,27 @@ export const useVideoQueue = () => {
     const aggregatedResults: { name: string; url: string; processingDetails?: any }[] = [];
 
     for (let i = 0; i < copies; i++) {
-      const formData = new FormData();
-      formData.append('video', item.file);
-      formData.append('settings', JSON.stringify(item.settings));
       try {
         // Generate per-variation parameters with unique variation index
         const variationParams = generateProcessingParameters(item.settings, i);
-        formData.append('params', JSON.stringify(variationParams));
         console.log(`Generated variation ${i + 1} parameters:`, variationParams);
-      } catch {
-        // ignore param generation errors
-      }
-
-      try {
-        const response = await fetch('https://video-server-production-a86c.up.railway.app/process-video', {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Accept': 'application/json'
-          }
-        });
-
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          await response.text();
-          throw new Error(`Server returned unexpected format. Content-Type: ${contentType || 'undefined'}`);
-        }
-
-        let responseData: any;
-        try {
-          responseData = await response.json();
-        } catch (jsonError) {
-          throw new Error('Error processing server response.');
-        }
-
-        if (!response.ok) {
-          const errorMsg = responseData?.error || 'Processing error';
-          throw new Error(errorMsg);
-        }
-
-        if (responseData.results && Array.isArray(responseData.results)) {
-          const processedVideos = responseData.results.map((result: any, idx: number) => ({
-            name: result.name || `processed_${i + 1}_${idx + 1}_${item.file.name}`,
-            url: (result.url && result.url.startsWith('http'))
-              ? result.url.replace('http://', 'https://')
-              : `https://video-server-production-a86c.up.railway.app${result.url}`.replace('http://', 'https://'),
-            processingDetails: result.processingDetails || { copyIndex: i + 1 }
-          }));
-          aggregatedResults.push(...processedVideos);
-        } else if (responseData.success && responseData.videoUrl) {
-          const secureUrl = String(responseData.videoUrl).replace('http://', 'https://');
+        
+        // Use the enhanced processVideoOnServer function
+        const result = await processVideoOnServer(item.file, variationParams, item.settings);
+        
+        // Handle the result
+        if (Array.isArray(result)) {
+          aggregatedResults.push(...result);
+        } else {
           const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
           aggregatedResults.push({
             name: `processed_var${i + 1}_${uniqueId}_${item.file.name}`,
-            url: secureUrl,
-            processingDetails: { ...responseData, copyIndex: i + 1 }
+            url: result.url,
+            processingDetails: result.processingDetails || { ...variationParams, copyIndex: i + 1 }
           });
-        } else {
-          console.warn('Unexpected response format for queue item:', responseData);
         }
       } catch (error) {
+        console.error(`Error processing variation ${i + 1} for queue item:`, error);
         throw error;
       }
     }
