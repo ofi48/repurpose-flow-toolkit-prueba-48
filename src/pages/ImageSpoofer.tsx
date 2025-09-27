@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import FileUpload from '@/components/FileUpload';
 import ParameterSlider from '@/components/ParameterSlider';
 import ProgressBar from '@/components/ProgressBar';
+import ImageProcessTab from '@/components/image/ImageProcessTab';
+import ImageResultsTab from '@/components/image/ImageResultsTab';
 import { ImagePresetSettings } from '@/types/preset';
 import { Check, Download, Image as ImageIcon } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { useImageQueue } from '@/hooks/useImageQueue';
+import { useGlobalResults } from '@/hooks/useGlobalResults';
 
 const ImageSpoofer = () => {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
@@ -17,7 +23,18 @@ const ImageSpoofer = () => {
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<{ name: string; url: string }[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewDialog, setPreviewDialog] = useState<{ open: boolean; fileName: string; fileUrl: string }>({
+    open: false,
+    fileName: '',
+    fileUrl: ''
+  });
   const { toast } = useToast();
+  
+  // Global results and queue management
+  const { globalResults, addResults, clearResults } = useGlobalResults();
+  const imageQueue = useImageQueue();
 
   // Settings
   const [settings, setSettings] = useState<ImagePresetSettings>({
@@ -30,11 +47,25 @@ const ImageSpoofer = () => {
   });
 
   const handleFileSelect = (file: File) => {
-    setCurrentFile(file);
-    if (!uploadedFiles.some(f => f.name === file.name)) {
-      setUploadedFiles(prev => [...prev, file]);
-    }
-    setResults([]);
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    // Simulate upload progress
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsUploading(false);
+          setCurrentFile(file);
+          if (!uploadedFiles.some(f => f.name === file.name)) {
+            setUploadedFiles(prev => [...prev, file]);
+          }
+          setResults([]);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 100);
   };
 
   const applyImageEffects = async (file: File, variantIndex: number): Promise<{ name: string; url: string }> => {
@@ -141,6 +172,9 @@ const ImageSpoofer = () => {
       setResults(allResults);
       setProcessing(false);
       
+      // Add to global results
+      addResults(allResults, 'single');
+      
       toast({
         title: "Processing complete",
         description: `Generated ${allResults.length} image variants with real effects applied.`,
@@ -166,7 +200,7 @@ const ImageSpoofer = () => {
     document.body.removeChild(link);
   };
 
-  const handleDownloadAll = () => {
+  const handleDownloadAllSingle = () => {
     results.forEach((result, index) => {
       setTimeout(() => {
         handleDownload(result.name, result.url);
@@ -198,6 +232,30 @@ const ImageSpoofer = () => {
     });
   };
 
+  // Queue management functions
+  const handleAddToQueue = (files: File[]) => {
+    imageQueue.addImagesToQueue(files, settings, numCopies);
+  };
+
+  const handlePreview = (fileName: string, fileUrl: string) => {
+    setPreviewDialog({ open: true, fileName, fileUrl });
+  };
+
+  const handleDownloadAllGlobal = () => {
+    const allResults = globalResults.filter(r => r.name.includes('variant'));
+    allResults.forEach((result, index) => {
+      setTimeout(() => {
+        handleDownload(result.name, result.url);
+      }, index * 100);
+    });
+    
+    toast({
+      title: "Download started",
+      description: `Downloading ${allResults.length} image variants.`,
+      variant: "default"
+    });
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -209,187 +267,75 @@ const ImageSpoofer = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 space-y-6">
-          <FileUpload 
+      <Tabs defaultValue="process" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="process">Process Images</TabsTrigger>
+          <TabsTrigger value="results">Results ({globalResults.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="process">
+          <ImageProcessTab
+            currentFile={currentFile}
             onFileSelect={handleFileSelect}
-            acceptedFileTypes=".jpg,.jpeg,.png,.webp"
-            label="Upload Image"
+            uploadProgress={uploadProgress}
+            isUploading={isUploading}
+            numCopies={numCopies}
+            onNumCopiesChange={setNumCopies}
+            onStartProcess={handleStartProcess}
+            isProcessing={processing}
+            progress={progress}
+            settings={settings}
+            onSettingChange={updateSettingParam}
+            queue={imageQueue.queue}
+            queueIsProcessing={imageQueue.isProcessing}
+            currentQueueItem={imageQueue.currentItem}
+            onAddToQueue={handleAddToQueue}
+            onProcessQueue={imageQueue.processQueue}
+            onRemoveFromQueue={imageQueue.removeFromQueue}
+            onRetryQueueItem={imageQueue.retryItem}
+            onClearQueue={imageQueue.clearQueue}
+            onPreview={handlePreview}
+            onDownload={handleDownload}
+            onDownloadAll={handleDownloadAllGlobal}
           />
+        </TabsContent>
 
-          <div className="parameter-card">
-            <Label className="text-sm font-medium block mb-2">Uploaded Images ({uploadedFiles.length})</Label>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
-              {uploadedFiles.length > 0 ? (
-                uploadedFiles.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between bg-app-dark p-2 rounded">
-                    <span className="text-sm truncate">{file.name}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setUploadedFiles(prev => prev.filter((_, i) => i !== index))}
-                    >
-                      ✕
-                    </Button>
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-500 text-sm">No images uploaded yet</p>
-              )}
-            </div>
-          </div>
+        <TabsContent value="results">
+          <ImageResultsTab
+            results={globalResults}
+            onPreview={handlePreview}
+            onDownload={handleDownload}
+            onDownloadAll={handleDownloadAllGlobal}
+            onClearResults={clearResults}
+          />
+        </TabsContent>
+      </Tabs>
 
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Copies Per Image</Label>
-            <Input 
-              type="number" 
-              min={1} 
-              max={20} 
-              value={numCopies} 
-              onChange={(e) => setNumCopies(parseInt(e.target.value) || 3)}
-              className="bg-app-dark-accent border-gray-700"
+      {/* Preview Dialog */}
+      <Dialog open={previewDialog.open} onOpenChange={(open) => setPreviewDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>{previewDialog.fileName}</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-4">
+            <img 
+              src={previewDialog.fileUrl} 
+              alt={previewDialog.fileName}
+              className="max-w-full max-h-[70vh] object-contain rounded-lg"
             />
-            
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
             <Button 
-              className="w-full" 
-              onClick={handleStartProcess}
-              disabled={processing || uploadedFiles.length === 0}
+              onClick={() => handleDownload(previewDialog.fileName, previewDialog.fileUrl)}
+              className="w-full"
             >
-              {processing ? 'Processing...' : 'Generate Variants'}
+              <Download className="mr-2 h-4 w-4" />
+              Download
             </Button>
-            
-            {processing && (
-              <ProgressBar value={progress} label="Processing image variants" />
-            )}
           </div>
-        </div>
+        </DialogContent>
+      </Dialog>
 
-        <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="parameter-card space-y-3">
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="flip-horizontal" 
-                  checked={settings.flipHorizontal} 
-                  onCheckedChange={(checked) => setSettings(prev => ({...prev, flipHorizontal: !!checked}))} 
-                />
-                <Label htmlFor="flip-horizontal" className="text-sm font-medium">
-                  Flip Horizontally (Random)
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="blur-border" 
-                  checked={settings.blurBorder} 
-                  onCheckedChange={(checked) => setSettings(prev => ({...prev, blurBorder: !!checked}))} 
-                />
-                <Label htmlFor="blur-border" className="text-sm font-medium">
-                  Apply Subtle Border Blur
-                </Label>
-              </div>
-            </div>
-
-            <ParameterSlider
-              title="Brightness"
-              min={0.7}
-              max={1.3}
-              step={0.05}
-              minValue={settings.brightness.min}
-              maxValue={settings.brightness.max}
-              enabled={settings.brightness.enabled}
-              onMinChange={(value) => updateSettingParam('brightness', 'min', value)}
-              onMaxChange={(value) => updateSettingParam('brightness', 'max', value)}
-              onToggle={(checked) => updateSettingParam('brightness', 'enabled', checked)}
-            />
-            
-            <ParameterSlider
-              title="Contrast"
-              min={0.7}
-              max={1.3}
-              step={0.05}
-              minValue={settings.contrast.min}
-              maxValue={settings.contrast.max}
-              enabled={settings.contrast.enabled}
-              onMinChange={(value) => updateSettingParam('contrast', 'min', value)}
-              onMaxChange={(value) => updateSettingParam('contrast', 'max', value)}
-              onToggle={(checked) => updateSettingParam('contrast', 'enabled', checked)}
-            />
-            
-            <ParameterSlider
-              title="Saturation"
-              min={0.7}
-              max={1.3}
-              step={0.05}
-              minValue={settings.saturation.min}
-              maxValue={settings.saturation.max}
-              enabled={settings.saturation.enabled}
-              onMinChange={(value) => updateSettingParam('saturation', 'min', value)}
-              onMaxChange={(value) => updateSettingParam('saturation', 'max', value)}
-              onToggle={(checked) => updateSettingParam('saturation', 'enabled', checked)}
-            />
-            
-            <ParameterSlider
-              title="Compression"
-              min={50}
-              max={100}
-              step={1}
-              minValue={settings.compression.min}
-              maxValue={settings.compression.max}
-              enabled={settings.compression.enabled}
-              onMinChange={(value) => updateSettingParam('compression', 'min', value)}
-              onMaxChange={(value) => updateSettingParam('compression', 'max', value)}
-              onToggle={(checked) => updateSettingParam('compression', 'enabled', checked)}
-            />
-          </div>
-
-          {results.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Generated Images</h2>
-              
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {results.map((result, index) => (
-                  <div key={index} className="bg-app-dark-accent border border-gray-700 rounded-lg overflow-hidden">
-                     <div className="aspect-square bg-black flex items-center justify-center overflow-hidden">
-                       <img 
-                         src={result.url} 
-                         alt={result.name}
-                         className="w-full h-full object-cover"
-                         onError={(e) => {
-                           e.currentTarget.src = '';
-                           e.currentTarget.style.display = 'none';
-                         }}
-                       />
-                     </div>
-                     <div className="p-2">
-                       <p className="text-xs font-medium truncate">{result.name}</p>
-                       <Button 
-                         size="sm" 
-                         className="w-full mt-2"
-                         onClick={() => handleDownload(result.name, result.url)}
-                       >
-                         <Download className="h-3 w-3 mr-1" />
-                         Download
-                       </Button>
-                     </div>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="flex justify-between items-center border-t border-gray-800 pt-4 mt-4">
-                <div>
-                  <p className="text-sm text-gray-400">
-                    Generated {results.length} image variants
-                  </p>
-                </div>
-                 <Button onClick={handleDownloadAll}>
-                   <Download className="mr-2 h-4 w-4" />
-                   Download All
-                 </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 };
