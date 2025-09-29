@@ -40,9 +40,9 @@ export const generateProcessingParameters = (settings: VideoPresetSettings, vari
     speed: getParameterValue(settings.speed, 1, 5),
     flipHorizontal: settings.flipHorizontal || false,
     
-    // Trim timing
+    // Trim timing - trimEnd should represent duration of the segment we want to keep
     trimStart: getParameterValue(settings.trimStart, 0, 6),
-    trimEnd: getParameterValue(settings.trimEnd, 0, 7),
+    trimDuration: getParameterValue(settings.trimEnd, 0, 7), // Change trimEnd to trimDuration
     
     // Audio
     volume: getParameterValue(settings.volume, 1, 8)
@@ -58,15 +58,15 @@ export const buildComplexFilter = (params: any, settings: VideoPresetSettings) =
   // Color adjustments using eq filter - build all parameters at once
   const eqParams: string[] = [];
   
-  if (settings.saturation?.enabled && params.saturation !== undefined) {
+  if (settings.saturation?.enabled && params.saturation !== undefined && params.saturation !== 1) {
     eqParams.push(`saturation=${params.saturation}`);
   }
   
-  if (settings.contrast?.enabled && params.contrast !== undefined) {
+  if (settings.contrast?.enabled && params.contrast !== undefined && params.contrast !== 1) {
     eqParams.push(`contrast=${params.contrast}`);
   }
   
-  if (settings.brightness?.enabled && params.brightness !== undefined) {
+  if (settings.brightness?.enabled && params.brightness !== undefined && params.brightness !== 0) {
     eqParams.push(`brightness=${params.brightness}`);
   }
   
@@ -78,6 +78,11 @@ export const buildComplexFilter = (params: any, settings: VideoPresetSettings) =
   // Add flip filter if enabled
   if (params.flipHorizontal) {
     filters.push('hflip');
+  }
+  
+  // Speed adjustment for video timing
+  if (settings.speed?.enabled && params.speed && params.speed !== 1) {
+    filters.push(`setpts=${(1/params.speed).toFixed(6)}*PTS`);
   }
   
   return filters.join(',');
@@ -103,7 +108,9 @@ export const processVideoOnServer = async (file: File, params: any, settings: Vi
       contrast: parseFloat((params.contrast || 1.0).toFixed(2)),
       brightness: parseFloat((params.brightness || 0.0).toFixed(2)),
       speed: parseFloat((params.speed || 1.0).toFixed(3)),
-      volume: parseFloat((params.volume || 1.0).toFixed(2))
+      volume: parseFloat((params.volume || 1.0).toFixed(2)),
+      // Send flag to prevent server from applying duplicate filters
+      useComplexFilter: true
     };
     
     // Create form data to send
