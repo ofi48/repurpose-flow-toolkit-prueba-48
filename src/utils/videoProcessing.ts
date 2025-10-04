@@ -121,16 +121,12 @@ export const processVideoOnServer = async (file: File, params: any, settings: Vi
     
     console.log('FormData created with:', file.name, 'enhanced params:', enhancedParams);
     
-    // Use Supabase edge function as proxy to Railway server
-    const supabaseUrl = 'https://ekrvkgvojajchfytjvzk.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrcnZrZ3ZvamFqY2hmeXRqdnprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxODM2MzgsImV4cCI6MjA3Mjc1OTYzOH0.hUhjd5N20iz_jzbtvMiZwRfhxaTtaIACd2bqMT3tldc';
-    
-    const response = await fetch(`${supabaseUrl}/functions/v1/process-video`, {
+    // Call Railway directly (edge function has 10MB limit for video uploads)
+    const response = await fetch('https://video-server-production-a86c.up.railway.app/process-video', {
       method: 'POST',
       body: formData,
       headers: {
-        'Accept': 'application/json',
-        'apikey': supabaseKey
+        'Accept': 'application/json'
       }
     });
     
