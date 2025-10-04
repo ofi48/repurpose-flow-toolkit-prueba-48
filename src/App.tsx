@@ -11,7 +11,6 @@ import Dashboard from "./pages/Dashboard";
 import VideoRepurposer from "./pages/VideoRepurposer";
 
 import ImageSpoofer from "./pages/ImageSpoofer";
-import GifConverter from "./pages/GifConverter";
 import Detector from "./pages/Detector";
 import FileReducer from "./pages/FileReducer";
 import Auth from "./pages/Auth";
@@ -32,7 +31,6 @@ const App = () => (
               <Route path="/video-repurposer" element={<Layout><VideoRepurposer /></Layout>} />
               
               <Route path="/image-spoofer" element={<Layout><ImageSpoofer /></Layout>} />
-              <Route path="/gif-converter" element={<Layout><GifConverter /></Layout>} />
               <Route path="/detector" element={<Layout><Detector /></Layout>} />
               <Route path="/file-reducer" element={<Layout><FileReducer /></Layout>} />
               <Route path="/auth" element={<Auth />} />

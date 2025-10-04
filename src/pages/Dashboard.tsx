@@ -31,13 +31,6 @@ const Dashboard = () => {
       color: "bg-purple-500"
     },
     {
-      title: "GIF Converter",
-      description: "Convert videos to high-quality GIFs with custom settings",
-      icon: FileImage,
-      path: "/gif-converter",
-      color: "bg-pink-500"
-    },
-    {
       title: "Similarity Detector",
       description: "Compare two files to determine their similarity percentage",
       icon: Search,

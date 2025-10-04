@@ -43,11 +43,6 @@ const AppSidebar = () => {
       path: "/image-spoofer"
     },
     {
-      name: "GIF Converter",
-      icon: FileImage,
-      path: "/gif-converter"
-    },
-    {
       name: "Similarity Detector",
       icon: Search,
       path: "/detector"
