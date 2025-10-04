@@ -39,6 +39,19 @@ if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir, { recursive: true });
 }
 
+// Helper function to get video duration using ffprobe
+const getVideoDuration = (inputPath) => {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(inputPath, (err, metadata) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(metadata.format.duration);
+      }
+    });
+  });
+};
+
 // Main video processing endpoint
 app.post('/process-video', upload.single('video'), async (req, res) => {
   console.log('Received video processing request');
@@ -54,6 +67,10 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     
     console.log('Processing parameters received:', params);
     console.log('Settings received:', settings);
+
+    // Get original video duration for trim calculations
+    const videoDuration = await getVideoDuration(inputPath);
+    console.log(`Original video duration: ${videoDuration}s`);
 
     // Generate unique output filename
     const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -139,14 +156,28 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     }
 
     // Apply trim if enabled
-    if (settings.trimStart?.enabled && params.trimStart > 0) {
-      command.seekInput(params.trimStart);
-      console.log(`Applied trim start: ${params.trimStart}s`);
+    // IMPORTANT: trimStart = seconds to CUT from beginning, trimEnd = seconds to CUT from end
+    const trimStart = (settings.trimStart?.enabled && params.trimStart > 0) ? params.trimStart : 0;
+    const trimEnd = (settings.trimEnd?.enabled && params.trimEnd > 0) ? params.trimEnd : 0;
+    
+    console.log(`Trim settings - Start: ${trimStart}s (cut from beginning), End: ${trimEnd}s (cut from end)`);
+    
+    if (trimStart > 0) {
+      command.seekInput(trimStart);
+      console.log(`Seeking to ${trimStart}s (skipping first ${trimStart} seconds)`);
     }
 
-    if (settings.trimEnd?.enabled && params.trimEnd > 0) {
-      command.duration(params.trimEnd - (params.trimStart || 0));
-      console.log(`Applied trim duration: ${params.trimEnd - (params.trimStart || 0)}s`);
+    if (trimEnd > 0) {
+      // Calculate final duration: original duration - seconds cut from start - seconds cut from end
+      const finalDuration = videoDuration - trimStart - trimEnd;
+      console.log(`Calculating final duration: ${videoDuration} - ${trimStart} - ${trimEnd} = ${finalDuration}s`);
+      
+      if (finalDuration > 0) {
+        command.duration(finalDuration);
+        console.log(`Setting output duration to ${finalDuration}s`);
+      } else {
+        console.warn(`Invalid trim settings: would result in ${finalDuration}s duration. Skipping trim end.`);
+      }
     }
 
     // Set output format and codec
