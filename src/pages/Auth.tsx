@@ -61,15 +61,16 @@ const Auth = () => {
     <div className="min-h-screen bg-app-dark flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center mb-8">
-          <div className="text-app-blue mr-2">
-            <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M7 14L18 7L29 14V28H7V14Z" stroke="currentColor" strokeWidth="2" />
-              <path d="M15 20L18 17L21 20L21 28H15V20Z" fill="currentColor" />
+          <div className="text-app-blue mr-3">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 5L7 12V28L20 35L33 28V12L20 5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+              <path d="M20 5V20M20 20L7 28M20 20L33 28" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <circle cx="20" cy="20" r="3" fill="currentColor"/>
             </svg>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">RepurposeFlow</h1>
-            <p className="text-xs text-gray-400">Content Repurposing Toolkit</p>
+            <h1 className="text-3xl font-bold text-white">ContentWizard</h1>
+            <p className="text-sm text-gray-400">Professional Content Creation Toolkit</p>
           </div>
         </div>
         
