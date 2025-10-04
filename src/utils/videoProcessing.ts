@@ -40,9 +40,9 @@ export const generateProcessingParameters = (settings: VideoPresetSettings, vari
     speed: getParameterValue(settings.speed, 1, 5),
     flipHorizontal: settings.flipHorizontal || false,
     
-    // Trim timing - trimEnd should represent duration of the segment we want to keep
+    // Trim timing - trimEnd is the time to cut from the end
     trimStart: getParameterValue(settings.trimStart, 0, 6),
-    trimDuration: getParameterValue(settings.trimEnd, 0, 7), // Change trimEnd to trimDuration
+    trimEnd: getParameterValue(settings.trimEnd, 0, 7),
     
     // Audio
     volume: getParameterValue(settings.volume, 1, 8)
