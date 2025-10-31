@@ -34,34 +34,9 @@ export const VideoQueueProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [videoQueue.queue]);
 
-  // Load queue from localStorage on mount
+  // Clear old queue data from localStorage on mount to prevent showing stale videos
   useEffect(() => {
-    const savedQueue = localStorage.getItem('videoQueue');
-    if (savedQueue) {
-      try {
-        const parsedQueue = JSON.parse(savedQueue);
-        // Only restore completed items (not processing ones)
-        const completedItems = parsedQueue.filter((item: any) => 
-          item.status === 'completed' || item.status === 'error'
-        );
-        if (completedItems.length > 0) {
-          // Add to global results if completed
-          const completedResults = completedItems
-            .filter((item: any) => item.status === 'completed' && item.results)
-            .flatMap((item: any) => item.results.map((result: any) => ({
-              name: result.name,
-              url: result.url,
-              processingDetails: result.processingDetails
-            })));
-          
-          if (completedResults.length > 0) {
-            globalResults.addResults(completedResults, 'batch');
-          }
-        }
-      } catch (error) {
-        console.error('Error loading saved queue:', error);
-      }
-    }
+    localStorage.removeItem('videoQueue');
   }, []);
 
   const value: VideoQueueContextType = {
